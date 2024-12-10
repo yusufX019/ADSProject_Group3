@@ -25,9 +25,33 @@ class HalfAdderTester extends AnyFlatSpec with ChiselScalatestTester {
            *dut.io.ci.poke(...)
            *dut.io.s.expect(...)
            *dut.io.co.expect(...)
+           
            *...
            *TODO: Insert your test cases
            */
+
+
+
+          dut.io.A.poke(0.U)
+          dut.io.B.poke(0.U)
+          dut.io.S.expect(0.U)
+          dut.io.C.expect(0.U)
+
+          dut.io.A.poke(0.U)
+          dut.io.B.poke(1.U)
+          dut.io.S.expect(1.U)
+          dut.io.C.expect(0.U)
+
+          dut.io.A.poke(1.U)
+          dut.io.B.poke(0.U)
+          dut.io.S.expect(1.U)
+          dut.io.C.expect(0.U)
+
+          dut.io.A.poke(1.U)
+          dut.io.B.poke(1.U)
+          dut.io.S.expect(0.U)
+          dut.io.C.expect(1.U)
+
 
         }
     } 
