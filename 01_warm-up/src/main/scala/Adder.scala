@@ -24,11 +24,20 @@ class HalfAdder extends Module{
     /* 
      * TODO: Define IO ports of a half adder as presented in the lecture
      */
+
+    val A = Input(UInt(1.W))
+    val B = Input(UInt(1.W))
+    val S = Output(UInt(1.W))
+    val C = Output(UInt(1.W))
+
     })
 
   /* 
    * TODO: Describe output behaviour based on the input values
    */
+
+    io.S := io.A ^ io.B
+    io.C := io.A & io.B
 
 }
 
