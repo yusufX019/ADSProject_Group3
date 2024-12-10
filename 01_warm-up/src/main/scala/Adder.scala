@@ -36,8 +36,14 @@ class HalfAdder extends Module{
    * TODO: Describe output behaviour based on the input values
    */
 
-    io.S := io.A ^ io.B
-    io.C := io.A & io.B
+    val signalXor = Wire(UInt(1.W))
+    val signalAnd = Wire(UInt(1.W))
+
+    signalXor := io.A ^ io.B
+    signalAnd := io.A & io.B
+
+    io.S := signalXor
+    io.C := signalAnd
 
 }
 
