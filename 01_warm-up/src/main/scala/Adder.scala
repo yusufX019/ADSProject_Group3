@@ -64,6 +64,13 @@ class FullAdder extends Module{
     /* 
      * TODO: Define IO ports of a half adder as presented in the lecture
      */
+  
+    val A    = Input(UInt(1.W))
+    val B    = Input(UInt(1.W))
+    val Cin  = Input(UInt(1.W))
+    val S    = Output(UInt(1.W))
+    val Cout = Output(UInt(1.W))
+
     })
 
 
@@ -71,10 +78,25 @@ class FullAdder extends Module{
    * TODO: Instanciate the two half adders you want to use based on your HalfAdder class
    */
 
+  
+  val halfAdder1 = Module(new HalfAdder())
+  val halfAdder2 = Module(new HalfAdder())
+
+  halfAdder1.io.A := io.A
+  halfAdder1.io.B := io.B
+  halfAdder2.io.A := io.Cin
+  halfAdder2.io.B := halfAdder1.io.S
+
+  val signalS  = halfAdder2.io.S
+  val signalOr = halfAdder2.io.C | halfAdder1.io.C
+
 
   /* 
    * TODO: Describe output behaviour based on the input values and the internal signals
    */
+
+  io.S    := signalS
+  io.Cout := signalOr
 
 }
 
@@ -94,11 +116,43 @@ class FourBitAdder extends Module{
     /* 
      * TODO: Define IO ports of a 4-bit ripple-carry-adder as presented in the lecture
      */
+    
+    val A = Input(UInt(4.W))
+    val B = Input(UInt(4.W))
+    val C = Output(UInt(1.W))
+    val S = Output(UInt(4.W))
+
+
     })
 
   /* 
    * TODO: Instanciate the full adders and one half adderbased on the previously defined classes
    */
+    val halfAdder  = Module(new HalfAdder())
+    val fullAdder1 = Module(new FullAdder())
+    val fullAdder2 = Module(new FullAdder())
+    val fullAdder3 = Module(new FullAdder())
+
+    halfAdder.io.A := io.A(0)
+    halfAdder.io.B := io.B(0)
+
+    fullAdder1.io.A   := io.A(1)
+    fullAdder1.io.B   := io.B(1)
+    fullAdder1.io.Cin := halfAdder.io.C
+
+    fullAdder2.io.A   := io.A(2)
+    fullAdder2.io.B   := io.B(2)
+    fullAdder2.io.Cin := fullAdder1.io.Cout
+
+    fullAdder3.io.A   := io.A(3)
+    fullAdder3.io.B   := io.B(3)
+    fullAdder3.io.Cin := fullAdder2.io.Cout
+
+    val signalS = Cat(fullAdder3.io.S, fullAdder2.io.S, fullAdder1.io.S, halfAdder.io.S)
+    val signalC = fullAdder3.io.Cout
+
+    io.C := signalC
+    io.S := signalS
 
 
   /* 

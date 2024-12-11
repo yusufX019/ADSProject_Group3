@@ -29,6 +29,54 @@ class FullAdderTester extends AnyFlatSpec with ChiselScalatestTester {
            *TODO: Insert your test cases
            */
 
+          dut.io.A.poke(0.U)
+          dut.io.B.poke(0.U)
+          dut.io.Cin.poke(0.U)
+          dut.io.S.expect(0.U)
+          dut.io.Cout.expect(0.U)
+
+          dut.io.A.poke(0.U)
+          dut.io.B.poke(0.U)
+          dut.io.Cin.poke(1.U)
+          dut.io.S.expect(1.U)
+          dut.io.Cout.expect(0.U)
+          
+          dut.io.A.poke(0.U)
+          dut.io.B.poke(1.U)
+          dut.io.Cin.poke(0.U)
+          dut.io.S.expect(1.U)
+          dut.io.Cout.expect(0.U)
+          
+          dut.io.A.poke(0.U)
+          dut.io.B.poke(1.U)
+          dut.io.Cin.poke(1.U)
+          dut.io.S.expect(0.U)
+          dut.io.Cout.expect(1.U)
+
+          dut.io.A.poke(1.U)
+          dut.io.B.poke(0.U)
+          dut.io.Cin.poke(0.U)
+          dut.io.S.expect(1.U)
+          dut.io.Cout.expect(0.U)
+
+          dut.io.A.poke(1.U)
+          dut.io.B.poke(0.U)
+          dut.io.Cin.poke(1.U)
+          dut.io.S.expect(0.U)
+          dut.io.Cout.expect(1.U)
+
+          dut.io.A.poke(1.U)
+          dut.io.B.poke(1.U)
+          dut.io.Cin.poke(0.U)
+          dut.io.S.expect(0.U)
+          dut.io.Cout.expect(1.U)
+
+          dut.io.A.poke(1.U)
+          dut.io.B.poke(1.U)
+          dut.io.Cin.poke(1.U)
+          dut.io.S.expect(1.U)
+          dut.io.Cout.expect(1.U)
+
         }
     } 
 }
