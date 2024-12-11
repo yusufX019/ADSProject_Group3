@@ -8,6 +8,9 @@ package readserial
 
 import chisel3._
 import chisel3.util._
+import chisel3.stage._
+import chisel3.experimental.ChiselEnum
+import adder.FourBitAdder
 
 
 /** controller class */
@@ -17,12 +20,21 @@ class Controller extends Module{
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+
+    val rxd     = Input(UInt(1.W))
+    val reset_n = Input(UInt(1.W))
+    val cnt_s   = Input(UInt(1.W))
+    val cnt_en  = Output(UInt(1.W))
+    val valid   = Output(UInt(1.W))
     })
 
   // internal variables
   /* 
    * TODO: Define internal variables (registers and/or wires), if needed
    */
+   val signalValid = Wire(UInt(1.W))
+   val signalCntEn = Wire(UInt(1.W))
+  
 
   // state machine
   /* 
@@ -31,25 +43,62 @@ class Controller extends Module{
 
 }
 
+object StateCounter {
+  object State extends ChiselEnum {
+    val Idle, Counting = Value
+  }
+}
 
 /** counter class */
 class Counter extends Module{
-  
+  import StateCounter.State
+  import StateCounter.State._ 
+
   val io = IO(new Bundle {
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+     val reset_n = Input(UInt(1.W))
+     val cnt_en  = Input(UInt(1.W))
+     val cnt_s   = Output(UInt(1.W))
+
     })
 
   // internal variables
   /* 
    * TODO: Define internal variables (registers and/or wires), if needed
    */
+    val signalCntS = Wire(UInt(1.W))
+    val regCntValue = RegInit(0.U(4.W))
 
   // state machine
   /* 
    * TODO: Describe functionality if the counter as a state machine
    */
+   val state = RegInit(StateCounter.State.Idle)
+
+   switch(state){
+    is(state.Idle){
+      regCntValue := 0.U
+      signalCntS  := 0.U
+      when(io.cnt_en){
+        state := State.Counting
+      } .otherwise{
+        state := State.Idle
+      }
+    }
+    is(state.Counting){
+      when(regCntValue < 8){
+        regCntValue + 1.U
+        state := State.Counting
+      }
+      .otherwise{
+        signalCntS := 1.U
+      }
+    }
+   }
+
+
 
 
 }
@@ -61,12 +110,15 @@ class ShiftRegister extends Module{
     /* 
      * TODO: Define IO ports of a the component as stated in the documentation
      */
+     val data = Output(UInt(1.W))
     })
 
   // internal variables
   /* 
    * TODO: Define internal variables (registers and/or wires), if needed
    */
+    val signalData = Wire(UInt(8.W))
+    val regData = Reg(UInt(8.W))
 
   // functionality
   /* 
