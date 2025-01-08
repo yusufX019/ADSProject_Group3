@@ -73,20 +73,20 @@ class RV32Icore (BinaryFile: String) extends Module {
    * TODO: Implement the program counter as a register, initialize with zero
    */
 
-  val PC := Reg(0.U(32.W))
+  val PC = RegInit(0.U(32.W))
 
   val regFile = Mem(32, UInt(32.W))
   /*
    * TODO: hard-wire register x0 to zero
    */
 
-  regFile[0] := 0.UInt
+  regFile.write(0.U,0.U)
 
   // -----------------------------------------
   // Fetch
   // -----------------------------------------
 
-  val instr  = Wire(UInt(32.W)) 
+  val instr = Wire(UInt(32.W))
   instr := IMem(PC>>2.U)
 
   // -----------------------------------------
@@ -125,18 +125,18 @@ class RV32Icore (BinaryFile: String) extends Module {
    /*
    * TODO: Add operand signals accoring to specification
    */
-   val operandA = (5.W)
-   val operandB = (5.W)
+   val operandA = Wire(UInt(32.W))
+   val operandB = Wire(UInt(32.W))
 
 
-   // not really sure about this. Maybe try without 2 points
-   operandA := regFile[rs1]
+  
+   operandA := regFile(rs1)
 
    // Defining operandB depending on type of the instruction
    when(isADDI){
     operandB := instr(31,20)
-   }.else{
-    operandB := regFile[rs2]
+   }.otherwise{
+    operandB := regFile(rs2)
    }
 
 
@@ -145,10 +145,10 @@ class RV32Icore (BinaryFile: String) extends Module {
   // -----------------------------------------
 
   val aluResult = Wire(UInt(32.W))
-
-  when(isADDI) { 
-    aluResult := operandA + operandB 
-  }.elsewhen(isADD) {                           
+  
+  when(isADDI) {     
+    aluResult := operandA + operandB
+  }.elsewhen(isADD) {  
     aluResult := operandA + operandB 
   }
 
@@ -158,29 +158,37 @@ class RV32Icore (BinaryFile: String) extends Module {
    */
   
   // Not casting because documentation does not specify to do it
-  when(isADDI) { 
-    aluResult := operandA + operandB
-  }.elsewhen(isADD) {
-    aluResult := operandA + operandB
-  }.elsewhen(isSLT) {
-    aluResult := if ( (operandA).asSInt < (operandB).asSInt ) 1.U else 0.U
+
+  .elsewhen(isSLT) {
+    when((operandA).asSInt < (operandB).asSInt){
+        aluResult := 1.U
+    }.otherwise{
+        aluResult := 0.U
+    }
   }.elsewhen(isSLTU) {
-    aluResult := if ( (operandA).asUInt < (operandB).asUInt ) 1.U else 0.U // not sure about casting it to UInt
-  .elsewhen(isAND) {
+    when((operandA).asUInt < (operandB).asUInt){
+        aluResult := 1.U
+    }.otherwise{
+        aluResult := 0.U
+    }
+  }.elsewhen(isAND) {
     aluResult := operandA & operandB
   }.elsewhen(isOR) {
     aluResult := operandA | operandB 
   }.elsewhen(isXOR) {
     aluResult := operandA ^ operandB 
   }.elsewhen(isSLL) {
-    aluResult := operandA << operandB 
+    aluResult := operandA << operandB(4,0)
   }.elsewhen(isSRL) {
     aluResult := operandA >> operandB 
   }.elsewhen(isSUB) {
     aluResult := operandA - operandB 
   }.elsewhen(isSRA) {
-    aluResult := operandA >>> operandB // not sure about this
+    aluResult := (operandA.asSInt >> operandB.asUInt).asUInt 
+  }.otherwise{
+    aluResult := 0.U
   }
+  
 
   // -----------------------------------------
   // Memory
@@ -193,13 +201,13 @@ class RV32Icore (BinaryFile: String) extends Module {
   // Write Back 
   // -----------------------------------------
 
-  val writeBackData = Wire(UInt(32.W)) 
+  val writeBackData = Wire(UInt(32.W))
   writeBackData := aluResult
 
   /*
    * TODO: Store "writeBackData" in register "rd" in regFile
    */
-   regFile[rd] := writeBackData //maybe without :
+   regFile(rd) := writeBackData
 
   // Check Result
   /*
@@ -213,6 +221,6 @@ class RV32Icore (BinaryFile: String) extends Module {
   /*
    * TODO: Increment PC
    */
-   PC = PC + 4.U
+   PC := PC + 4.U
 
 }

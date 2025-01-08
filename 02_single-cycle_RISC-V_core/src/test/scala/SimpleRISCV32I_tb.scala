@@ -59,6 +59,8 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
       dut.clock.step(1)       
       dut.io.result.expect(0.U)            // SRA  x3, x1, x2 -> Arithmetic Right Shifts on the value in register rs1 by the shift amount held in the lower 5 bits of register rs2
+
+      dut.clock.step(1)
     }
   }
 }
