@@ -13,7 +13,3 @@
 0020d1b3 // SRL  x3, x1, x2
 402081b3 // SUB  x3, x1, x2
 4020d1b3 // SRA  x3, x1, x2
-
-/* 
- * TODO: Add testcases for all R-type instructions in 'BinaryFile' and check the expected results here
- */
