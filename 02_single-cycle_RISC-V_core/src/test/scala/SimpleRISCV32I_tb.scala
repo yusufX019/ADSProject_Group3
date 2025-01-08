@@ -17,16 +17,15 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
     test(new SimpleRV32I("src/test/programs/BinaryFile")).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
 
       dut.clock.setTimeout(0)
-
       dut.io.result.expect(0.U)     // ADDI x0, x0, 0
+      
       dut.clock.step(1)
-
       dut.io.result.expect(4.U)     // ADDI x1, x0, 4
-      dut.clock.step(1)
 
+      dut.clock.step(1)
       dut.io.result.expect(5.U)     // ADDI x2, x0, 5
-      dut.clock.step(1)
 
+      dut.clock.step(1)
       dut.io.result.expect(9.U)     // ADD x3, x1, x2
       
         /* 
@@ -34,7 +33,7 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
          */
 
       dut.clock.step(1)
-      dut.io.result.expect(1.U)            // SLT x3, x1, x2 -> signed comparison, writing 1 to rd if rs1 < rs2, 0 otherwise
+      dut.io.result.expect(1.U)            // SLT x3, x1, x2  -> signed comparison, writing 1 to rd if rs1 < rs2, 0 otherwise
        
       dut.clock.step(1)       
       dut.io.result.expect(1.U)            // SLTU x3, x1, x2 -> unsigned comparison, writing 1 to rd if rs1 < rs2, 0 otherwise (note:rd, x0, rs2 sets rd to 1 if rs2 != 0, otherwise sets rd to 0)
