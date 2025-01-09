@@ -106,41 +106,28 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
    * TODO: Implement the registers and wires you need in the individual stages of the processor 
    */
    //fetch
-   val instr = Wire(UInt(32.W))
-   instr := 0.U
-
+  val instr = RegInit(0.U(32.W))
+   
   //decode
-  val opcode = instr(6, 0)
-  val rd = instr(11,7)
-   val funct3 = instr(14,12)
-   val rs1 = instr(19,15)
-   val rs2 = instr(24,20)
-   val funct7 = instr(31,25)
+  val rd = RegInit(0.U(32.W))
+ 
 
-  val isADD = RegInit(false.B)
+  val isADD  = RegInit(false.B)
   val isSLT  = RegInit(false.B)
   val isSLTU = RegInit(false.B)
   val isAND  = RegInit(false.B)
   val isOR   = RegInit(false.B)
   val isXOR  = RegInit(false.B)
- val isSLL  = RegInit(false.B)
- val isSRL  = RegInit(false.B)
- val isSUB  = RegInit(false.B)
- val isSRA  = RegInit(false.B)
- val isADDI = RegInit(false.B)
+  val isSLL  = RegInit(false.B)
+  val isSRL  = RegInit(false.B)
+  val isSUB  = RegInit(false.B)
+  val isSRA  = RegInit(false.B)
+  val isADDI = RegInit(false.B)
 
    
 val operandA = RegInit(0.U(32.W))
 val operandB = RegInit(0.U(32.W))
 
-val cnt = RegInit(0.U(8.W))
-
-operandA :=regFile(rs1)
-when(isADDI){
-    operandB := instr(31,20)
-   }.otherwise{
-    operandB := regFile(rs2)
-   }
 
 //execute
 val aluResult = RegInit(0.U(32.W))
@@ -164,9 +151,8 @@ writeBackData := 0.U
   /*
    * TODO: Implement fetch stage
    */
-   printf(p"beginning of fetch\n")
    instr := IMem(PC>>2.U)
-   cnt := cnt + 1.U
+
    stage := decode 
 
   } 
@@ -175,20 +161,35 @@ writeBackData := 0.U
   /*
    * TODO: Implement decode stage
    */
-   printf(p"beginning of decode\n")
-isADD  := (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U)
-isSLTU := (opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U)
-isAND  := (opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U)
-isOR   := (opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U)
-isXOR  := (opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U)
-isSLL  := (opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U)
-isSRL  := (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U)
-isSUB  := (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U)
-isSRA  := (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U)
-isADDI := (opcode === "b0010011".U && funct3 === "b000".U)
-printf(p"")
-isSLT := (opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U)
-cnt := cnt + 1.U
+
+   val opcode = instr(6, 0)
+   rd := instr(11,7)
+   val funct3 = instr(14,12)
+   val rs1 = instr(19,15)
+   val rs2 = instr(24,20)
+   val funct7 = instr(31,25)
+
+
+  isADD  := (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U)
+  isSLTU := (opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U)
+  isAND  := (opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U)
+  isOR   := (opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U)
+  isXOR  := (opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U)
+  isSLL  := (opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U)
+  isSRL  := (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U)
+  isSUB  := (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U)
+  isSRA  := (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U)
+  isADDI := (opcode === "b0010011".U && funct3 === "b000".U)
+  isSLT := (opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U)
+
+  operandA := regFile(rs1)
+
+  when(opcode === "b0010011".U){
+    operandB := instr(31,20)
+  }.otherwise{
+    operandB := regFile(rs2)
+  }
+
 stage := execute
   } 
     .elsewhen (stage === execute)
@@ -196,10 +197,8 @@ stage := execute
   /*
    * TODO: Implement execute stage
    */
-   printf(p"beginning of exec\n")
-  when(isADDI) {     
+  when(isADDI) {
     aluResult := operandA + operandB
-    printf(p"value alures in exec ADDI ${aluResult}\n")
   }.elsewhen(isADD) {  
     aluResult := operandA + operandB 
   }.elsewhen(isSLT) {
@@ -231,7 +230,6 @@ stage := execute
   }.otherwise{
     aluResult := 0.U
   }
-  cnt := cnt + 1.U
   stage := memory
   }
     .elsewhen (stage === memory)
@@ -240,9 +238,6 @@ stage := execute
     // No memory operations implemented in this basic CPU
 
     // TODO: There might still something be missing here
-    printf(p"beginning of memory\n")
-    printf(p"value alures ${aluResult}\n")
-    cnt := cnt + 1.U
     stage := writeback
 
   } 
@@ -251,11 +246,8 @@ stage := execute
   /*
    * TODO: Implement Writeback stag
    */
-   printf(p"beginning of writeback\n")
    writeBackData := aluResult
-   printf(p"value in writebackdata at the end ${writeBackData}\n")
    regFile(rd) := writeBackData
-   printf(p"value in reg file at the end ${regFile(rd)}\n")
 
   /*
    * TODO: Write result to output
@@ -263,8 +255,7 @@ stage := execute
   io.check_res := 0.U
   io.check_res := writeBackData
   PC := PC + 4.U
-  cnt := cnt + 1.U
-  printf(p"counter in write back stage ${cnt}\n")
+
   stage := fetch
   }
     .otherwise 
