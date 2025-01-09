@@ -22,7 +22,8 @@ class MultiCycleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
       /* SETUP Environment */
 
-      dut.clock.setTimeout(0) 
+      dut.clock.setTimeout(0)
+      dut.clock.step(5)
       dut.io.result.expect(0.U)     // ADDI x0, x0, 0
       
       dut.clock.step(5)             // Wait for 5 cycles (end of NOP)
@@ -67,5 +68,3 @@ class MultiCycleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 }
-
-
