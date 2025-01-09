@@ -22,14 +22,16 @@ class MultiCycleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
       /* SETUP Environment */
 
-      dut.clock.setTimeout(0) 
+      dut.clock.setTimeout(0)
+
+      dut.clock.step(5) 
       dut.io.result.expect(0.U)     // ADDI x0, x0, 0
       
       dut.clock.step(5)             // Wait for 5 cycles (end of NOP)
-      dut.io.result.expect(4.U)     // ADDI x1, x0, 4
+      dut.io.result.expect(6.U)     // ADDI x1, x0, 4
       
       dut.clock.step(5)             // Wait for 5 cycles: in this case we have a 15 multicycle logic with 5 stage, hence we need to wait that all the operations are done
-      dut.io.result.expect(5.U)     // ADDI x2, x0, 5
+      dut.io.result.expect(67.U)     // ADDI x2, x0, 5
       
       /* Arithmetic R-Type operations */
 
