@@ -93,6 +93,7 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
    */
 
   val regFile = Mem(32, UInt(32.W))
+  regFile.write(0.U,0.U)
 
   // -----------------------------------------
   // Microarchitectural Registers / Wires
@@ -106,7 +107,7 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
    */
    //fetch
    val instr = Wire(UInt(32.W))
-   instr :=0.U
+   instr := 0.U
 
   //decode
   val opcode = instr(6, 0)
@@ -132,6 +133,8 @@ class MultiCycleRV32Icore (BinaryFile: String) extends Module {
 val operandA = RegInit(0.U(32.W))
 val operandB = RegInit(0.U(32.W))
 
+val cnt = RegInit(0.U(8.W))
+
 operandA :=regFile(rs1)
 when(isADDI){
     operandB := instr(31,20)
@@ -141,7 +144,7 @@ when(isADDI){
 
 //execute
 val aluResult = RegInit(0.U(32.W))
-aluResult := 0.U
+//aluResult := 0.U
 
 //writeback
 val writeBackData = Wire(UInt(32.W))
@@ -161,8 +164,9 @@ writeBackData := 0.U
   /*
    * TODO: Implement fetch stage
    */
+   printf(p"beginning of fetch\n")
    instr := IMem(PC>>2.U)
-   printf(p"end of fetch")
+   cnt := cnt + 1.U
    stage := decode 
 
   } 
@@ -171,6 +175,7 @@ writeBackData := 0.U
   /*
    * TODO: Implement decode stage
    */
+   printf(p"beginning of decode\n")
 isADD  := (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U)
 isSLTU := (opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U)
 isAND  := (opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U)
@@ -181,7 +186,9 @@ isSRL  := (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b000000
 isSUB  := (opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U)
 isSRA  := (opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U)
 isADDI := (opcode === "b0010011".U && funct3 === "b000".U)
+printf(p"")
 isSLT := (opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U)
+cnt := cnt + 1.U
 stage := execute
   } 
     .elsewhen (stage === execute)
@@ -189,8 +196,10 @@ stage := execute
   /*
    * TODO: Implement execute stage
    */
+   printf(p"beginning of exec\n")
   when(isADDI) {     
     aluResult := operandA + operandB
+    printf(p"value alures in exec ADDI ${aluResult}\n")
   }.elsewhen(isADD) {  
     aluResult := operandA + operandB 
   }.elsewhen(isSLT) {
@@ -222,7 +231,7 @@ stage := execute
   }.otherwise{
     aluResult := 0.U
   }
-  printf(p"end of execute")
+  cnt := cnt + 1.U
   stage := memory
   }
     .elsewhen (stage === memory)
@@ -231,7 +240,9 @@ stage := execute
     // No memory operations implemented in this basic CPU
 
     // TODO: There might still something be missing here
-    printf(p"end of memory")
+    printf(p"beginning of memory\n")
+    printf(p"value alures ${aluResult}\n")
+    cnt := cnt + 1.U
     stage := writeback
 
   } 
@@ -240,8 +251,11 @@ stage := execute
   /*
    * TODO: Implement Writeback stag
    */
+   printf(p"beginning of writeback\n")
    writeBackData := aluResult
+   printf(p"value in writebackdata at the end ${writeBackData}\n")
    regFile(rd) := writeBackData
+   printf(p"value in reg file at the end ${regFile(rd)}\n")
 
   /*
    * TODO: Write result to output
@@ -249,7 +263,8 @@ stage := execute
   io.check_res := 0.U
   io.check_res := writeBackData
   PC := PC + 4.U
-  printf(p"end of write back")
+  cnt := cnt + 1.U
+  printf(p"counter in write back stage ${cnt}\n")
   stage := fetch
   }
     .otherwise 
