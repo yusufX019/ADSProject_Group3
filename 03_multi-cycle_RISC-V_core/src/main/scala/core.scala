@@ -226,7 +226,8 @@ stage := execute
   }.elsewhen(isSUB) {
     aluResult := operandA - operandB 
   }.elsewhen(isSRA) {
-    aluResult := (operandA.asSInt >> operandB.asUInt).asUInt 
+    printf(p"opa ${operandA}\n opb ${operandB}\n")
+    aluResult := (operandA.asSInt >> operandB).asUInt
   }.otherwise{
     aluResult := 0.U
   }
