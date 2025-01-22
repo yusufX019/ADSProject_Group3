@@ -325,12 +325,22 @@ class MEM extends Module {
 class WB extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
+    val res = Input(UInt(32.W))
+    val rd  = Input(UInt(5.W))
+    val wIn = Input(Bool())
+
+    val addr = Output(UInt(5.W))
+    val data = Output(UInt(32.W))
+    val wOut = Output(Bool())
   })
 
   /* 
    * TODO: Perform the write back to the register file and set 
    *       the check_res signal for the testbench.
    */
+  io.addr := io.rd
+  io.data := io.result
+  io.wOut := io.rd =/= 0.U
 
 }
 
@@ -362,8 +372,8 @@ class IDBarrier extends Module {
     // What inputs and / or outputs does this barrier need?
     val instrOut = Input(32.U)
     val PCOut    = Input(32.U)
-    val instrIn  = Input(UInt(32.U))
-    val PCIn     = Input(UInt(32.U))
+    val instrIn  = Output(UInt(32.U))
+    val PCIn     = Output(UInt(32.U))
   })
 
   /* TODO: Define registers */
@@ -386,14 +396,41 @@ class IDBarrier extends Module {
 class EXBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
+    val operandA_in = Input(UInt(32.W))
+    val operandB_in = Input(UInt(32.W))
+    val microOP_in  = Input(UInt(8.W))
+    val imm_in      = Input(UInt(12.W))
+    val read_in     = Input(UInt(5.W))
+
+    val operandA_out = Output(UInt(32.W))
+    val operandB_out = Output(UInt(32.W))
+    val microOP_out  = Output(UInt(8.W))
+    val imm_out      = Output(UInt(12.W))
+    val read_out     = Output(UInt(5.W))
 
   })
 
   /* TODO: Define registers */
 
+  val operandA_reg = Reg(UInt(32.W))
+  val operandB_reg = Reg(UInt(32.W))
+  val microOP_reg  = Reg(UInt(8.W))
+  val imm_reg      = Reg(UInt(12.W))
+  val read_reg     = Reg(UInt(5.W))
+
   /* TODO: Fill registers from the inputs and write regioster values to the outputs */
 
+  operandA_reg := io.operandA_in
+  operandB_reg := io.operandB_in
+  microOP_reg  := io.microOP_in
+  imm_reg      := io.imm_in
+  read_reg     := io.read_in
  
+  io.operandA_out := operandA_reg
+  io.operandB_out := operandB_reg
+  io.microOP_out   := microOP_reg 
+  io.imm_out       := imm_reg     
+  io.read_out      := read_reg    
 }
 
 
@@ -404,23 +441,23 @@ class EXBarrier extends Module {
 class MEMBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
-    val dataIn  = Input(UInt(32.W))
-    val rdIn    = Input(UInt(5.W))
-    val dataOut = Output(UInt(32.W))
-    val rdOut   = Output(UInt(5.W))
+    val data_in  = Input(UInt(32.W))
+    val rd_in    = Input(UInt(5.W))
+    val data_out = Output(UInt(32.W))
+    val rd_out   = Output(UInt(5.W))
   })
 
   /* TODO: Define registers */
 
-  val dataReg = Reg(UInt(32.W))
-  val rdReg   = Reg(UInt(5.W))
+  val data_reg = Reg(UInt(32.W))
+  val rd_reg   = Reg(UInt(5.W))
 
   /* TODO: Fill registers from the inputs and write regioster values to the outputs */
   
-  dataReg    := io.dataIn
-  rdReg      := io.rdIn 
-  io.dataOut := dataReg
-  io.rdOut   := rdReg
+  data_reg    := io.data_in
+  rd_reg      := io.rd_in 
+  io.data_out := data_reg
+  io.rd_out   := rd_reg
 }
 
 
