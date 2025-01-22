@@ -227,7 +227,7 @@ stage := execute
     aluResult := operandA - operandB 
   }.elsewhen(isSRA) {
     printf(p"opa ${operandA}\n opb ${operandB}\n")
-    aluResult := (operandA.asSInt >> operandB).asUInt
+    aluResult := (operandA(11, 0).asSInt >> operandB).asUInt // logical shift instead of arithmetic shift
   }.otherwise{
     aluResult := 0.U
   }

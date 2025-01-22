@@ -7,7 +7,7 @@
 00400093 // ADDI x1, x0, 4
 00500113 // ADDI x2, x0, 5
 
-ffe00093 // ADDI x1, x0, -2
+ff600093 // ADDI x1, x0, -10
 00200113 // ADDI x2, x0, 2
 4020d1b3 // SRA  x3, x1, x2
 002081b3 // ADD  x3, x1, x2
