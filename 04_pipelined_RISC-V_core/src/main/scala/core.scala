@@ -136,16 +136,16 @@ class regFile extends Module {
   }otherwise{
     io.resp.rr_rs2 := regFile(io.req.rr_rs2)
   }
-  
-      val rread1 = Output(resp)
-      val rread2 = Output(resp)
-      val writereq = Input(write)
+
+  when (io.write.wr_writeEnable && io.write.wr_rd =/= 0.U){ //maybe with if
+    regFile(io.write.wr_rd) := io.write.wr_d
+  }
   
   /* 
     TODO: Initialize the register file as described in the task 
           and handle the read and write requests
    */
-  val regFile = Mem(32, UInt(32.W))
+  val regFile = Mem(32, UInt(32.W)) // maybe missing declaration
   regFile.write(0.U,0.U)
 
 
@@ -159,20 +159,23 @@ class regFile extends Module {
 class IF (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
-    val instrIn = Input(32.U)
     val instrOut = Input(32.U)
+    val PCOut = Input(32.U)
   })
 
   /* 
     TODO: Initialize the IMEM as described in the task 
           and handle the instruction fetch.*/
-  loadMemoryFromFile(IMem, BinaryFile)
-  instrIn := IMem(PC>>2.U)
+  loadMemoryFromFile(IMem, BinaryFile) //maybe mising declaration
 
    /* TODO: Update the program counter (no jumps or branches, 
           next PC always reads next address from IMEM)
    */
    PC := PC + 4.U
+   val instr = IMem(PC>>2.U)
+
+   io.instrOut := instr
+   io.PCOut := PC
 
   
 }
@@ -185,47 +188,60 @@ class IF (BinaryFile: String) extends Module {
 class ID extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
-    val instrIn = Input(32.U)
-    val opcode = Output(7.U)
-    val rd = Output(5.U)
-    val funct3 = Output(3.U)
-    val rs1 = Output(5.U)
-    val rs2 = Output(5.U)
-    val fucnt7 = Output(7.U)
+    val instrIn = Input(UInt(32.U))
+    val PCIn = Input(UInt(32.U))
+    val microOP = Output(UInt(8.U))
+    val rdOUt = Output(UInt(5.U))
+    val imm = Output(UInt(12.U))
+    val read = Output(new regFileReadReq)
   })
-  opcode := instr(6, 0)
-   rd := instr(11,7)
-  funct3 := instr(14,12)
-   rs1 := instr(19,15)
-   rs2 := instr(24,20)
-   funct7 := instr(31,25)
   /* 
    * TODO: Any internal signals needed?
    */
+  val opcode := io.instrIn(6, 0)
+  val rd := io.instrIn(11,7)
+  val funct3 := io.instrIn(14,12)
+  val rs1 := io.instrIn(19,15)
+  val rs2 := io.instrIn(24,20)
+  val funct7 := io.instrIn(31,25)
+  val imm_value := io.instrIn(31,20)
 
   /* 
     Determine the uop based on the disassembled instruction*/
 
-    when( condition ){
-      when( next condition ){
-        io.upo := isXYZ
-      }.otherwise{
-        maybe declare a case to catch invalid instructions
-      } 
-    }.elsewhen( different condition ){
-      when( next condition ){
-        io.upo := isXYZ
-      }.otherwise{
-        maybe declare a case to catch invalid instructions
-      } 
-    }.otherwise{
-      maybe declare a case to catch invalid instructions
-    }
+   when(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isADD
+   }elsewhen(opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isSLTU
+   }elsewhen(opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isAND
+   }elsewhen(opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isOR
+   }elsewhen(opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isXOR
+   }elsewhen(opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isSLL
+   }elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isSRL
+   }elsewhen(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U){
+    io.microOP := uopc.isSUB
+   }elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U){
+    io.microOP := uopc.isSRA
+   }elsewhen(opcode === "b0010011".U && funct3 === "b000".U){
+    io.microOP := uopc.isADDI
+   }elsewhen(opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U){
+    io.microOP := uopc.isSLT
+   }otherwise{
+    io.microOP := uopc.invalid
+   }
 
   /* 
    * TODO: Read the operands from teh register file
    */
-  
+   io.read.rr_rs1 := rs1
+  io.read.rr_rs2 := rs2
+  io.imm := imm_value
+  io.rdOUt := rd
 }
 
 // -----------------------------------------
