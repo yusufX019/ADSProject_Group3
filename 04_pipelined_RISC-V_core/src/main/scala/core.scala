@@ -354,73 +354,101 @@ class IFBarrier extends Module {
 
 
 // -----------------------------------------
-// ID-Barrier
+// ID-Barrier: IF-ID
 // -----------------------------------------
 
 class IDBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
+    val instrOut = Input(32.U)
+    val PCOut    = Input(32.U)
+    val instrIn  = Input(UInt(32.U))
+    val PCIn     = Input(UInt(32.U))
   })
 
-  /* 
-   * TODO: Define registers
-   *
-   * TODO: Fill registers from the inputs and write regioster values to the outputs
+  /* TODO: Define registers */
+    val instrReg = RegInit(UInt(32.w))
+    val pcReg    = Reg(UInt(32.W))
+   /* TODO: Fill registers from the inputs and write regioster values to the outputs
    */
+   instrReg    := io.instrIn
+   pcReg       := io.PCIn
+   io.instrOut := instrReg
+   io.PCOut    := pcReg
 
 }
 
 
 // -----------------------------------------
-// EX-Barrier
+// EX-Barrier: ID-EX
 // -----------------------------------------
 
 class EXBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
+
   })
 
-  /* 
-   * TODO: Define registers
-   *
-   * TODO: Fill registers from the inputs and write regioster values to the outputs
-  */
+  /* TODO: Define registers */
 
+  /* TODO: Fill registers from the inputs and write regioster values to the outputs */
+
+ 
 }
 
 
 // -----------------------------------------
-// MEM-Barrier
+// MEM-Barrier: EX-MEM
 // -----------------------------------------
 
 class MEMBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
+    val dataIn  = Input(UInt(32.W))
+    val rdIn    = Input(UInt(5.W))
+    val dataOut = Output(UInt(32.W))
+    val rdOut   = Output(UInt(5.W))
   })
 
-  /* 
-   * TODO: Define registers
-   *
-   * TODO: Fill registers from the inputs and write regioster values to the outputs
-  */
+  /* TODO: Define registers */
 
+  val dataReg = Reg(UInt(32.W))
+  val rdReg   = Reg(UInt(5.W))
+
+  /* TODO: Fill registers from the inputs and write regioster values to the outputs */
+  
+  dataReg    := io.dataIn
+  rdReg      := io.rdIn 
+  io.dataOut := dataReg
+  io.rdOut   := rdReg
 }
 
 
 // -----------------------------------------
-// WB-Barrier
+// WB-Barrier: MEM-WB
 // -----------------------------------------
 
 class WBBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
+    val data_in  = Input(UInt(32.W))
+    val addr_in  = Input(UInt(5.W))
+    val data_out = Output(UInt(32.W))
+    val addr_out = Output(UInt(5.W))
   })
 
   /* 
-   * TODO: Define registers
-   *
-   * TODO: Fill registers from the inputs and write regioster values to the outputs
-  */
+   * TODO: Define registers */
+
+  val reg_data = Reg(UInt(32.W))
+  val reg_addr = Reg(UInt(5.W))
+  
+  /* TODO: Fill registers from the inputs and write regioster values to the outputs */
+
+  reg_data    := io.data_in
+  reg_addr    := io.addr_in
+  io.data_out := reg_data
+  io.addr     := reg_addr
 
 }
 
