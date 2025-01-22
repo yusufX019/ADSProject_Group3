@@ -90,6 +90,8 @@ object uopc extends ChiselEnum {
 
 import uopc._
 
+val PC = RegInit(0.U(32.W))
+val IMem = Mem(4096, UInt(32.W))
 
 // -----------------------------------------
 // Register File
@@ -97,29 +99,56 @@ import uopc._
 
 class regFileReadReq extends Bundle {
     // what signals does a read request need?
+    val rr_rs1 = Input(UInt(5.W))    // Wire(UInt(12.W))
+    val rr_rs2 = Input(UInt(5.W))    // Wire(UInt(12.W))
 }
 
 class regFileReadResp extends Bundle {
     // what signals does a read response need?
+    val rp_d1 = Output(UInt(32.W))    // Wire(UInt(32.W))
+    val rp_d2 = Output(UInt(32.W))    // Wire(UInt(32.W))
 }
 
 class regFileWriteReq extends Bundle {
     // what signals does a write request need?
+    val wr_rd = Input(UInt(5.W))  // Wire(UInt(12.W))
+    val wr_d  = Input(UInt(32.W))  // Wire(UInt(32.W))
+    val wr_writeEnable = Input(Bool())
 }
 
 class regFile extends Module {
   val io = IO(new Bundle {
     val req  = new regFileReadReq
     val resp = new regFileReadResp
+    val write = new regFileWriteReq
     // how many read and write ports do you need to handle all requests
-    // from the ipeline to the register file simultaneously?
+    // from the pipeline to the register file simultaneously?
+        // 2 ports for reading and 1 for writing
 })
+  when(io.req.rr_rs1 === 0.U){ //maybe better with if
+       io.resp.rr_rs1 := 0.U
+  }otherwise{
+    io.resp.rr_rs1 := regFile(io.req.rr_rs1)
+  }
+  
+   when(io.req.rr_rs2 === 0.U){ //maybe better with if
+       io.resp.rr_rs2 := 0.U
+  }otherwise{
+    io.resp.rr_rs2 := regFile(io.req.rr_rs2)
+  }
+  
+      val rread1 = Output(resp)
+      val rread2 = Output(resp)
+      val writereq = Input(write)
   
   /* 
     TODO: Initialize the register file as described in the task 
           and handle the read and write requests
    */
-  
+  val regFile = Mem(32, UInt(32.W))
+  regFile.write(0.U,0.U)
+
+
 }
 
 
@@ -130,15 +159,21 @@ class regFile extends Module {
 class IF (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
+    val instrIn = Input(32.U)
+    val instrOut = Input(32.U)
   })
 
   /* 
     TODO: Initialize the IMEM as described in the task 
-          and handle the instruction fetch.
+          and handle the instruction fetch.*/
+  loadMemoryFromFile(IMem, BinaryFile)
+  instrIn := IMem(PC>>2.U)
 
-    TODO: Update the program counter (no jumps or branches, 
+   /* TODO: Update the program counter (no jumps or branches, 
           next PC always reads next address from IMEM)
    */
+   PC := PC + 4.U
+
   
 }
 
@@ -150,14 +185,26 @@ class IF (BinaryFile: String) extends Module {
 class ID extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
+    val instrIn = Input(32.U)
+    val opcode = Output(7.U)
+    val rd = Output(5.U)
+    val funct3 = Output(3.U)
+    val rs1 = Output(5.U)
+    val rs2 = Output(5.U)
+    val fucnt7 = Output(7.U)
   })
-
+  opcode := instr(6, 0)
+   rd := instr(11,7)
+  funct3 := instr(14,12)
+   rs1 := instr(19,15)
+   rs2 := instr(24,20)
+   funct7 := instr(31,25)
   /* 
    * TODO: Any internal signals needed?
    */
 
   /* 
-    Determine the uop based on the disassembled instruction
+    Determine the uop based on the disassembled instruction*/
 
     when( condition ){
       when( next condition ){
@@ -174,7 +221,6 @@ class ID extends Module {
     }.otherwise{
       maybe declare a case to catch invalid instructions
     }
-  */
 
   /* 
    * TODO: Read the operands from teh register file
