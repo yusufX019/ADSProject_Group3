@@ -1,3 +1,17 @@
-        /* 
-         * TODO: Insert your testcases from the previous assignments and adapt them for the pipelined core
-         */
+/* TODO: Insert your testcases from the previous assignments and adapt them for the pipelined core */
+/* The instructions in the file of Task 2 are correct for testing the multi-cycle RISC-V core, 
+   as they align with the RV32I instruction set implemented */
+
+00000013 // ADDI x0, x0, 0 | NOP
+00400093 // ADDI x1, x0, 4
+00500113 // ADDI x2, x0, 5
+002081b3 // ADD  x3, x1, x2
+0020a233 // SLT  x4, x1, x2
+0020b2b3 // SLTU x5, x1, x2
+0020f333 // AND  x6, x1, x2
+0020e3b3 // OR   x7, x1, x2
+0020c433 // XOR  x8, x1, x2
+002094b3 // SLL  x9, x1, x2
+0020d533 // SRL  x10, x1, x2
+402085b3 // SUB  x11, x1, x2
+4020d633 // SRA  x12, x1, x2

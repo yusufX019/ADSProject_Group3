@@ -112,7 +112,7 @@ class regFile extends Module {
     val req  = new regFileReadReq
     val resp = new regFileReadResp
     // how many read and write ports do you need to handle all requests
-    // from the ipeline to the register file simultaneously?
+    // from the pipeline to the register file simultaneously?
 })
   
   /* 
