@@ -24,7 +24,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
       dut.clock.setTimeout(0)
 
-      dut.clock.step(4) 
+      dut.clock.step(5) 
       dut.io.result.expect(0.U)     // ADDI x0, x0, 0
       
       dut.clock.step(1)             // Wait for 5 cycles (end of NOP)
@@ -35,7 +35,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       
       /* Arithmetic R-Type operations */
 
-      dut.clock.step(1)
+      dut.clock.step(4)                   // we need to stall for 3 clock cycles, necessary to get x2 and x3 values 
       dut.io.result.expect(9.U)           // ADD x3, x1, x2
       
       dut.clock.step(1)      
