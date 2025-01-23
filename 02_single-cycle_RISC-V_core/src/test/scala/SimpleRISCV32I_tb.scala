@@ -63,5 +63,3 @@ class SimpleRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 }
-
-

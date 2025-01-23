@@ -19,7 +19,8 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
         /* 
          * TODO: Insert your testcases from the previous assignments and adapt them for the pipelined core
          */
-                  /* SETUP Environment */
+
+         /* SETUP Environment */
 
       dut.clock.setTimeout(0)
 
@@ -69,3 +70,5 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 }
+
+
