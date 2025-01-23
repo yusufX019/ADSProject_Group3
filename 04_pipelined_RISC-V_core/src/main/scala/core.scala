@@ -90,8 +90,8 @@ object uopc extends ChiselEnum {
 
 import uopc._
 
-val PC = RegInit(0.U(32.W))
-val IMem = Mem(4096, UInt(32.W))
+//val PC = RegInit(0.U(32.W))
+//val IMem = Mem(4096, UInt(32.W))
 
 // -----------------------------------------
 // Register File
@@ -126,15 +126,15 @@ class regFile extends Module {
         // 2 ports for reading and 1 for writing
 })
   when(io.req.rr_rs1 === 0.U){ //maybe better with if
-       io.resp.rr_rs1 := 0.U
+       io.resp.rp_d1 := 0.U
   }otherwise{
-    io.resp.rr_rs1 := regFile(io.req.rr_rs1)
+    io.resp.rp_d1 := regFile(io.req.rr_rs1)
   }
   
    when(io.req.rr_rs2 === 0.U){ //maybe better with if
-       io.resp.rr_rs2 := 0.U
+       io.resp.rp_d2 := 0.U
   }otherwise{
-    io.resp.rr_rs2 := regFile(io.req.rr_rs2)
+    io.resp.rp_d2 := regFile(io.req.rr_rs2)
   }
 
   when (io.write.wr_writeEnable && io.write.wr_rd =/= 0.U){ //maybe with if
@@ -166,7 +166,10 @@ class IF (BinaryFile: String) extends Module {
   /* 
     TODO: Initialize the IMEM as described in the task 
           and handle the instruction fetch.*/
+  val IMem = Mem(4096, UInt(32.W))
   loadMemoryFromFile(IMem, BinaryFile) //maybe mising declaration
+
+  val PC = RegInit(0.U(32.W))
 
    /* TODO: Update the program counter (no jumps or branches, 
           next PC always reads next address from IMEM)
@@ -188,50 +191,50 @@ class IF (BinaryFile: String) extends Module {
 class ID extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
-    val instrIn = Input(UInt(32.U))
-    val PCIn = Input(UInt(32.U))
-    val microOP = Output(UInt(8.U))
-    val rdOUt = Output(UInt(5.U))
-    val imm = Output(UInt(12.U))
+    val instrIn = Input(UInt(32.W))
+    val PCIn = Input(UInt(32.W))
+    val microOP = Output(UInt(8.W))
+    val rdOUt = Output(UInt(5.W))
+    val imm = Output(UInt(12.W))
     val read = Output(new regFileReadReq)
   })
   /* 
    * TODO: Any internal signals needed?
    */
-  val opcode := io.instrIn(6, 0)
-  val rd := io.instrIn(11,7)
-  val funct3 := io.instrIn(14,12)
-  val rs1 := io.instrIn(19,15)
-  val rs2 := io.instrIn(24,20)
-  val funct7 := io.instrIn(31,25)
-  val imm_value := io.instrIn(31,20)
+  val opcode = io.instrIn(6, 0)
+  val rd = io.instrIn(11,7)
+  val funct3 = io.instrIn(14,12)
+  val rs1 = io.instrIn(19,15)
+  val rs2 = io.instrIn(24,20)
+  val funct7 = io.instrIn(31,25)
+  val imm_value = io.instrIn(31,20)
 
   /* 
     Determine the uop based on the disassembled instruction*/
 
    when(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U){
     io.microOP := uopc.isADD
-   }elsewhen(opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U){
     io.microOP := uopc.isSLTU
-   }elsewhen(opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U){
     io.microOP := uopc.isAND
-   }elsewhen(opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U){
     io.microOP := uopc.isOR
-   }elsewhen(opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U){
     io.microOP := uopc.isXOR
-   }elsewhen(opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U){
     io.microOP := uopc.isSLL
-   }elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U){
     io.microOP := uopc.isSRL
-   }elsewhen(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U){
     io.microOP := uopc.isSUB
-   }elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U){
     io.microOP := uopc.isSRA
-   }elsewhen(opcode === "b0010011".U && funct3 === "b000".U){
+   }.elsewhen(opcode === "b0010011".U && funct3 === "b000".U){
     io.microOP := uopc.isADDI
-   }elsewhen(opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U){
+   }.elsewhen(opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U){
     io.microOP := uopc.isSLT
-   }otherwise{
+   }.otherwise{
     io.microOP := uopc.invalid
    }
 
@@ -269,37 +272,37 @@ class EX extends Module {
       maybe also declare a case to catch invalid instructions
     }
   */
-    when(io.microOP == isADDI) {     
+    when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
-  }.elsewhen(io.microOP == isADD) {  
-    io.aluResult := (io.operandA.asSInt + io.operandB.asSInt).asUInt 
-  }.elsewhen(io.microOP == isSLT) {
-    when(io.operandA.asSInt < io.operandB.asSInt){
-        io.aluResult := 1.U
+    }.elsewhen(io.microOP == isADD) {  
+      io.aluResult := (io.operandA.asSInt + io.operandB.asSInt).asUInt 
+    }.elsewhen(io.microOP == isSLT) {
+      when(io.operandA.asSInt < io.operandB.asSInt){
+          io.aluResult := 1.U
+      }.otherwise{
+          io.aluResult := 0.U
+      }
+    }.elsewhen(io.microOP == isSLTU) {
+      when(io.operandA < io.operandB){
+          io.aluResult := 1.U
+      }.otherwise{
+          io.aluResult := 0.U
+      }
+    }.elsewhen(io.microOP == isAND) {
+      io.aluResult := io.operandA & io.operandB
+    }.elsewhen(io.microOP == isOR) {
+      io.aluResult := io.operandA | io.operandB 
+    }.elsewhen(io.microOP == isXOR) {
+      io.aluResult := io.operandA ^ io.operandB 
+    }.elsewhen(io.microOP == isSLL) {
+      io.aluResult := io.operandA << io.operandB(4,0)
+    }.elsewhen(io.microOP == isSRL) {
+      io.aluResult := io.operandA >> io.operandB 
+    }.elsewhen(io.microOP == isSUB) {
+      io.aluResult := io.operandA - io.operandB 
+    }.elsewhen(io.microOP == isSRA) {
+      io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt 
     }.otherwise{
-        io.aluResult := 0.U
-    }
-  }.elsewhen(io.microOP == isSLTU) {
-    when(io.operandA < io.operandB){
-        io.aluResult := 1.U
-    }.otherwise{
-        io.aluResult := 0.U
-    }
-  }.elsewhen(io.microOP == isAND) {
-    io.aluResult := io.operandA & io.operandB
-  }.elsewhen(io.microOP == isOR) {
-    io.aluResult := io.operandA | io.operandB 
-  }.elsewhen(io.microOP == isXOR) {
-    io.aluResult := io.operandA ^ io.operandB 
-  }.elsewhen(io.microOP == isSLL) {
-    io.aluResult := io.operandA << io.operandB(4,0)
-  }.elsewhen(io.microOP == isSRL) {
-    io.aluResult := io.operandA >> io.operandB 
-  }.elsewhen(io.microOP == isSUB) {
-    io.aluResult := io.operandA - io.operandB 
-  }.elsewhen(io.microOP == isSRA) {
-    io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt 
-  }.otherwise{
     io.aluResult := 5.U
   }
 }
@@ -339,7 +342,7 @@ class WB extends Module {
    *       the check_res signal for the testbench.
    */
   io.addr := io.rd
-  io.data := io.result
+  io.data := io.res
   io.wOut := io.rd =/= 0.U
 
 }
@@ -370,10 +373,10 @@ class IFBarrier extends Module {
 class IDBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
-    val instrOut = Input(32.U)
-    val PCOut    = Input(32.U)
-    val instrIn  = Output(UInt(32.U))
-    val PCIn     = Output(UInt(32.U))
+    val instrOut = Input(32.W)
+    val PCOut    = Input(32.W)
+    val instrIn  = Output(UInt(32.W))
+    val PCIn     = Output(UInt(32.W))
   })
 
   /* TODO: Define registers */
@@ -501,15 +504,31 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
    * TODO: Instantiate Barriers
    */
 
+  val if_id_bar  = Module(new IDBarrier)
+  val id_ex_bar  = Module(new EXBarrier)
+  val ex_mem_bar = Module(new MEMBarrier)
+  val mem_wb_bar = Module(new WBBarrier)
+
 
   /* 
    * TODO: Instantiate Pipeline Stages
    */
 
+  val if_stage  = Module(new IF(BinaryFile))
+  val id_stage  = Module(new ID(BinaryFile))
+  val ex_stage  = Module(new EX(BinaryFile))
+  val mem_stage = Module(new MEM(BinaryFile))
+  val wb_stage  = Module(new WB(BinaryFile))
+
 
   /* 
    * TODO: Instantiate Register File
    */
+
+  if_id_bar.io.instrIn := if_stage.io.instrOut
+  if_id_bar.io.PCIn := if_stage.io.PCOut
+
+  id_ex_bar.io.
 
   io.check_res := 0.U // necessary to make the empty design buildable TODO: change this
 
@@ -517,6 +536,37 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
    * TODO: Connect all IOs between the stages, barriers and register file.
    * Do not forget the global output of the core module
    */
+
+  // getting if/id barrier inputs from if stage outputs
+  if_id_bar.io.instrIn := if_stage.io.instrOut
+  if_id_bar.io.PCIn    := if_stage.io.PCOut
+
+  // getting id stage inputs from if/id barrier
+  id_ex_bar.io.instrIn := if_id_bar.io.instrOut
+  id_ex_bar.io.PcIn    := if_id_bar.io.PCOut
+
+  // getting id/ex barrier inputs from id stage outputs
+  id_ex_bar.io.operandA_in := id_stage.io.operandA_out
+  id_ex_bar.io.operandB_in := id_stage.io.operandB_out
+  id_ex_bar.io.microOP_in  := id_stage.io.microOP_out
+  id_ex_bar.io.imm_in      := id_stage.io.imm_out
+  id_ex_bar.io.rd_in       := id_stage.io.rd_out
+
+  // getting ex stage inputs from id/ex barrier outputs
+  ex_stage.io.operandA   := id_ex_bar.io.operandA_out
+  ex_stage.io.operandB   := id_ex_bar.io.operandB_out
+  ex_stage.io.microOP    := id_ex_bar.io.microOP_out
+  ex_stage.io.imm        := id_ex_bar.io.imm_out
+
+  // getting ex/mem barrier inputs from ex stage outputs
+  ex_mem_bar.io.data_in := ex_stage.io.aluResult
+  ex_mem_bar.io.read_in := id_ex_bar.io.read_out
+
+  // getting mem/wb inputs from ex/mem barrier outputs, thus
+  // we skipped mem stage
+  mem_wb_bar.io.data_in := ex_mem_bar.io.data_out
+  mem_wb_bar.io.read_in := ex_mem_bar.io.read_out
+
 
 }
 
