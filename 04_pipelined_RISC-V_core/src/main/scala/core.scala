@@ -127,13 +127,13 @@ class regFile extends Module {
 })
   when(io.req.rr_rs1 === 0.U){ //maybe better with if
        io.resp.rp_d1 := 0.U
-  }otherwise{
+  }.otherwise{
     io.resp.rp_d1 := regFile(io.req.rr_rs1)
   }
   
    when(io.req.rr_rs2 === 0.U){ //maybe better with if
        io.resp.rp_d2 := 0.U
-  }otherwise{
+  }.otherwise{
     io.resp.rp_d2 := regFile(io.req.rr_rs2)
   }
 
@@ -159,8 +159,8 @@ class regFile extends Module {
 class IF (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
-    val instrOut = Input(UInt(32.W))
-    val PCOut = Input(UInt(32.W))
+    val instrOut = Output(UInt(32.W))
+    val PCOut = Output(UInt(32.W))
   })
 
   /* 
@@ -264,15 +264,13 @@ class EX extends Module {
     val microOP   = Input(uopc())
     val imm       = Input(UInt(12.W))
     val rdIn      = Input(UInt(5.W))
-    val rdOut     = Input(UInt(5.W))
+    val rdOut     = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
   })
 
   /* 
     TODO: Perform the ALU operation based on the uopc
   */
-
-  io.rdOut := io.rdIn
 
     when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
@@ -556,7 +554,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   ex_stage.io.operandB   := id_ex_bar.io.operandB_out
   ex_stage.io.microOP    := id_ex_bar.io.microOP_out
   ex_stage.io.imm        := id_ex_bar.io.imm_out
-  ex_stage.io.rdIn       := id_ex_bar.io.rd_out
+  //ex_stage.io.rdIn       := id_ex_bar.io.rd_out
 
   // getting ex/mem barrier inputs from ex stage outputs
   ex_mem_bar.io.data_in := ex_stage.io.aluResult
@@ -565,7 +563,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   // getting mem/wb inputs from ex/mem barrier outputs, thus
   // we skipped mem stage
   mem_wb_bar.io.data_in := ex_mem_bar.io.data_out
-  mem_wb_bar.io.addr_in := ex_mem_bar.io.rd_out
+  mem_wb_bar.io.addr_in := id_ex_bar.io.rd_out
 
 
 }
