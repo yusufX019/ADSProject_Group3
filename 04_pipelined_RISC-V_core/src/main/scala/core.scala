@@ -302,6 +302,8 @@ class EX extends Module {
     }.otherwise{
     io.aluResult := 5.U
   }
+
+  io.rdOut := io.rdIn
 }
 
 // -----------------------------------------
@@ -494,6 +496,8 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
     val check_res = Output(UInt(32.W))
   })
 
+  val regFile = Module(new regFile)
+  regFile.io.write.wr_writeEnable := 0.U //disabling write enable
 
   /* 
    * TODO: Instantiate Barriers
@@ -519,7 +523,6 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   /* 
    * TODO: Instantiate Register File
    */
-  val regFile = Module(new regFile)
   io.check_res := 0.U // necessary to make the empty design buildable TODO: change this
 
   /* 
@@ -529,6 +532,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   // getting if/id barrier inputs from if stage outputs
   if_id_bar.io.instrIn := if_stage.io.instrOut
+  if_id_bar.io.PCIn    := if_stage.io.PCOut
 
   // getting id stage inputs from if/id barrier
   id_stage.io.instrIn := if_id_bar.io.instrOut
@@ -559,6 +563,14 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   mem_wb_bar.io.data_in := ex_mem_bar.io.data_out
   mem_wb_bar.io.addr_in := ex_mem_bar.io.rd_out
 
-io.check_res := WBBarrier.io.data_out
+  // getting wb stage inputs from mem/wb barrier output
+  wb_stage.io.res := mem_wb_bar.io.data_out
+  wb_stage.io.rd  := mem_wb_bar.io.addr_out
+
+  regFile.io.write.wr_writeEnable := 1.U        // enabling writing
+  regFile.io.write.wr_rd := wb_stage.io.addr
+  regFile.io.write.wr_d  := wb_stage.io.data
+
+  io.check_res := wb_stage.io.data
 }
 
