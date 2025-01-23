@@ -175,7 +175,7 @@ class IF (BinaryFile: String) extends Module {
           next PC always reads next address from IMEM)
    */
    PC := PC + 4.U
-   val instr = IMem(PC>>2.U)
+   val instr = IMem(PC>>2)
 
    io.instrOut := instr
    io.PCOut := PC
@@ -382,8 +382,8 @@ class IDBarrier extends Module {
   })
 
   /* TODO: Define registers */
-    val instrReg = RegInit(UInt(32.W))
-    val pcReg    = Reg(UInt(32.W))
+    val instrReg = RegInit(0.U(32.W))
+    val pcReg    = RegInit(0.U(32.W))
    /* TODO: Fill registers from the inputs and write regioster values to the outputs
    */
    instrReg    := io.instrOut
