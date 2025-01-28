@@ -76,39 +76,41 @@ class regFileWriteReq extends Bundle {
 
 class regFile extends Module {
   val io = IO(new Bundle {
-    val req_1  = new regFileReadReq
-    val resp_1 = new regFileReadResp
-    val req_2  = new regFileReadReq
-    val resp_2 = new regFileReadResp
-    val req_3  = new regFileWriteReq
+    val read_req_1  = new regFileReadReq
+    val read_resp_1 = new regFileReadResp
+    val read_req_2  = new regFileReadReq
+    val read_resp_2 = new regFileReadResp
+    val write_req   = new regFileWriteReq
 })
 
   val regFile = Mem(32, UInt(32.W))
   regFile(0) := 0.U                           // hard-wired zero for x0
 
-  when(io.req_3.wr_en){
-    when(io.req_3.addr =/= 0.U){
-      regFile(io.req_3.addr) := io.req_3.data
+  when(io.write_req.wr_en){
+    when(io.write_req.addr =/= 0.U){
+      regFile(io.write_req.addr) := io.write_req.data
     }
   }
 
-  io.resp_1.data := Mux(io.req_1.addr === 0.U, 0.U, regFile(io.req_1.addr))
-  io.resp_2.data := Mux(io.req_2.addr === 0.U, 0.U, regFile(io.req_2.addr))
+  io.read_resp_1.data := Mux(io.read_req_1.addr === 0.U, 0.U, regFile(io.read_req_1.addr))
+  io.read_resp_2.data := Mux(io.read_req_2.addr === 0.U, 0.U, regFile(io.read_req_2.addr))
 
 }
 
 class ForwardingUnit extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does the forwarding unit need?
-    val regIdID_rs1= Input(UInt(5.W))
-    val regIdID_rs2 = Input(UInt(5.W))
-    val regIdID_rd = Input(UInt(5.W))
-    val regIdEX_opA = Input(UInt(32.W))
-    val regIdEX_opB = Input(UInt(32.W))
+    val idex_bar_rs1 = Input(UInt(5.W))
+    val idex_bar_rs2 = Input(UInt(5.W))
+    val exme_bar_rd  = Input(UInt(5.W))
+    val mewb_bar_rd  = Input(UInt(5.W))
+    
+    val operand_a = Output(UInt(32.W))
+    val operand_b = Output(UInt(32.W))
+
     //none for memory because there are no memory operations
-    val regIdWB_rd = Input(UInt(5.W))
-    val forwardA = Bool()
-    val forwardB = Bool()
+    val forward_a = Bool()
+    val forward_b = Bool()
   })
 
 
@@ -117,16 +119,19 @@ class ForwardingUnit extends Module {
      Which pipeline stages are affected and how can a potential hazard be detected there?
   */
   //RAW hazards
-  when(io.regIdID_rs1 === io.regIdWB_rd || io.regIdID_rs2 === io.regIdWB_rd){  
-      forwardA := true.B //not sure about the writing
+  when(io.idex_bar_rs1 === io.exme_bar_rd ){
+      forward_a := true.B //not sure about the writing
+  }.elsewhen(io.idex_bar_rs1 === io.mewb_bar_rd) {
+    forward_a := false.B
   }
 
-  //WAW hazards
-  when(io.regIdID_rd === io.regIdWB_rd){
-    //instr a has to rite before instr b
-    forwardB := true.B
-  } 
+  when(io.idex_bar_rs2 === io.exme_bar_rd){
+    forward_b := true.B
+  }.elsewhen(io.idex_bar_rs2 === io.mewb_bar_rd){
+    forward_b := false.B
+  }
 
+  //WAW hazards cannot occur here
   //WAR hazards cannot occur here
 
 
