@@ -175,7 +175,7 @@ class IF (BinaryFile: String) extends Module {
           next PC always reads next address from IMEM)
    */
    PC := PC + 4.U
-   val instr = IMem(PC>>2.U)
+   val instr = IMem(PC>>2)
 
    io.instrOut := instr
    io.PCOut := PC
@@ -261,7 +261,7 @@ class EX extends Module {
     // What inputs and / or outputs does this pipeline stage need?
     val operandA  = Input(UInt(32.W))
     val operandB  = Input(UInt(32.W))
-    val microOP   = Input(UInt(8.W))
+    val microOP   = Input(uopc())
     val imm       = Input(UInt(12.W))
     val rdIn      = Input(UInt(5.W))
     val rdOut     = Input(UInt(5.W))
@@ -270,47 +270,39 @@ class EX extends Module {
 
   /* 
     TODO: Perform the ALU operation based on the uopc
-
-    when( uopc === isXYZ ){
-      result := operandA + operandB
-    }.elsewhen( uopc === isABC ){
-      result := operandA - operandB
-    }.otherwise{
-      maybe also declare a case to catch invalid instructions
-    }
   */
 
   io.rdOut := io.rdIn
 
     when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
-    }.elsewhen(io.microOP == isADD) {  
+    }.elsewhen(io.microOP === isADD) {  
       io.aluResult := (io.operandA.asSInt + io.operandB.asSInt).asUInt 
-    }.elsewhen(io.microOP == isSLT) {
+    }.elsewhen(io.microOP === isSLT) {
       when(io.operandA.asSInt < io.operandB.asSInt){
           io.aluResult := 1.U
       }.otherwise{
           io.aluResult := 0.U
       }
-    }.elsewhen(io.microOP == isSLTU) {
+    }.elsewhen(io.microOP === isSLTU) {
       when(io.operandA < io.operandB){
           io.aluResult := 1.U
       }.otherwise{
           io.aluResult := 0.U
       }
-    }.elsewhen(io.microOP == isAND) {
+    }.elsewhen(io.microOP === isAND) {
       io.aluResult := io.operandA & io.operandB
-    }.elsewhen(io.microOP == isOR) {
+    }.elsewhen(io.microOP === isOR) {
       io.aluResult := io.operandA | io.operandB 
-    }.elsewhen(io.microOP == isXOR) {
+    }.elsewhen(io.microOP === isXOR) {
       io.aluResult := io.operandA ^ io.operandB 
-    }.elsewhen(io.microOP == isSLL) {
+    }.elsewhen(io.microOP === isSLL) {
       io.aluResult := io.operandA << io.operandB(4,0)
-    }.elsewhen(io.microOP == isSRL) {
+    }.elsewhen(io.microOP === isSRL) {
       io.aluResult := io.operandA >> io.operandB 
-    }.elsewhen(io.microOP == isSUB) {
+    }.elsewhen(io.microOP === isSUB) {
       io.aluResult := io.operandA - io.operandB 
-    }.elsewhen(io.microOP == isSRA) {
+    }.elsewhen(io.microOP === isSRA) {
       io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt 
     }.otherwise{
     io.aluResult := 5.U
@@ -390,8 +382,8 @@ class IDBarrier extends Module {
   })
 
   /* TODO: Define registers */
-    val instrReg = RegInit(UInt(32.W))
-    val pcReg    = Reg(UInt(32.W))
+    val instrReg = RegInit(0.U(32.W))
+    val pcReg    = RegInit(0.U(32.W))
    /* TODO: Fill registers from the inputs and write regioster values to the outputs
    */
    instrReg    := io.instrOut
