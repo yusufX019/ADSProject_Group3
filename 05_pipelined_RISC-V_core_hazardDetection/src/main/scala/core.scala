@@ -100,18 +100,45 @@ class regFile extends Module {
 class ForwardingUnit extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does the forwarding unit need?
+    val regIdID_rs1= Input(UInt(5.W))
+    val regIdID_rs2 = Input(UInt(5.W))
+    val regIdID_rd = Input(UInt(5.W))
+    val regIdEX_opA = Input(UInt(32.W))
+    val regIdEX_opB = Input(UInt(32.W))
+    //none for memory because there are no memory operations
+    val regIdWB_rd = Input(UInt(5.W))
+    val forwardA = Bool()
+    val forwardB = Bool()
   })
 
 
   /* TODO:
      Hazard detetction logic:
-     Which pipeline stages are affected and how can a potential hazard be detetced there?
+     Which pipeline stages are affected and how can a potential hazard be detected there?
   */
+  //RAW hazards
+  when(io.regIdID_rs1 === io.regIdWB_rd || io.regIdID_rs2 === io.regIdWB_rd){  
+      forwardA := true.B //not sure about the writing
+  }
+
+  //WAW hazards
+  when(io.regIdID_rd === io.regIdWB_rd){
+    //instr a has to rite before instr b
+    forwardB := true.B
+  } 
+
+  //WAR hazards cannot occur here
+
 
   /* TODO:
      Forwarding Selection:
      Select the appropriate value to forward from one stage to another based on the hazard checks.
   */
+  when( forwardA){
+    //wb.rd of instr a to id.rs of instr b 
+  }.elsewhen(forwardB){
+    // what could we forward?
+  }
 
 }
 
