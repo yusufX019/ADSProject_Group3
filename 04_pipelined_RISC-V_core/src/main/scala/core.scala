@@ -151,7 +151,6 @@ class regFile extends Module {
 
 }
 
-
 // -----------------------------------------
 // Fetch Stage
 // -----------------------------------------
@@ -159,8 +158,8 @@ class regFile extends Module {
 class IF (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
-    val instrOut = Input(UInt(32.W))
-    val PCOut = Input(UInt(32.W))
+    val instrOut = Output(UInt(32.W))
+    val PCOut = Output(UInt(32.W))
   })
 
   /* 
@@ -177,8 +176,8 @@ class IF (BinaryFile: String) extends Module {
    PC := PC + 4.U
    val instr = IMem(PC>>2)
 
+  io.PCOut := PC
    io.instrOut := instr
-   io.PCOut := PC
 
   
 }
