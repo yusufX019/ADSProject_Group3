@@ -62,7 +62,7 @@ class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step(1)      
       dut.io.result.expect("hFFFFFFFF".U) // SUB  x11, x1, x2 -> expected result: -1
       
-      dut.clock.step(1)
+      dut.clock.step(4)
       dut.io.result.expect(0.U)           // SRA  x12, x1, x2 -> Arithmetic Right Shifts on the value in register rs1 by the shift amount held in the lower 5 bits of register rs2
 
       dut.clock.step(1)
