@@ -125,29 +125,30 @@ class regFile extends Module {
     // from the pipeline to the register file simultaneously?
         // 2 ports for reading and 1 for writing
 })
-  when(io.req.rr_rs1 === 0.U){ //maybe better with if
-       io.resp.rp_d1 := 0.U
-  }otherwise{
-    io.resp.rp_d1 := regFile(io.req.rr_rs1)
-  }
-  
-   when(io.req.rr_rs2 === 0.U){ //maybe better with if
-       io.resp.rp_d2 := 0.U
-  }otherwise{
-    io.resp.rp_d2 := regFile(io.req.rr_rs2)
-  }
 
-  when (io.write.wr_writeEnable && io.write.wr_rd =/= 0.U){ //maybe with if
-    regFile(io.write.wr_rd) := io.write.wr_d
-  }
-  
   /* 
     TODO: Initialize the register file as described in the task 
           and handle the read and write requests
    */
-  val regFile = Mem(32, UInt(32.W)) // maybe missing declaration
+
+  val regFile = Mem(32, UInt(32.W))
   regFile.write(0.U,0.U)
 
+  when(io.req.rr_rs1 === 0.U){
+    io.resp.rp_d1 := 0.U
+  }.otherwise{
+    io.resp.rp_d1 := regFile(io.req.rr_rs1)
+  }
+  
+   when(io.req.rr_rs2 === 0.U){
+    io.resp.rp_d2 := 0.U
+  }.otherwise{
+    io.resp.rp_d2 := regFile(io.req.rr_rs2)
+  }
+
+  when (io.write.wr_writeEnable && io.write.wr_rd =/= 0.U){
+    regFile(io.write.wr_rd) := io.write.wr_d
+  }
 
 }
 
@@ -159,8 +160,8 @@ class regFile extends Module {
 class IF (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
-    val instrOut = Input(UInt(32.W))
-    val PCOut = Input(UInt(32.W))
+    val instrOut = Output(UInt(32.W))
+    val PCOut = Output(UInt(32.W))
   })
 
   /* 
@@ -192,15 +193,13 @@ class ID extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
     val instrIn = Input(UInt(32.W))
-    val PCIn = Input(UInt(32.W))
     val microOP = Output(uopc())
     val rdOUt = Output(UInt(5.W))
     val imm = Output(UInt(12.W))
     val operandA_out = Output(UInt(32.W))
     val operandB_out = Output(UInt(32.W))
-    val readreq = Output(new regFileReadReq)
-    val readresp = Output(new regFileReadResp)
   })
+
   /* 
    * TODO: Any internal signals needed?
    */
@@ -244,10 +243,8 @@ class ID extends Module {
   /* 
    * TODO: Read the operands from teh register file
    */
-   io.readreq.rr_rs1 := rs1
-  io.readreq.rr_rs2 := rs2
-  io.operandA_out := io.readresp.rp_d1
-  io.operandB_out := io.readresp.rp_d2
+  io.operandA_out := rs1
+  io.operandB_out := rs2
   io.imm := imm_value
   io.rdOUt := rd
 }
@@ -264,15 +261,13 @@ class EX extends Module {
     val microOP   = Input(uopc())
     val imm       = Input(UInt(12.W))
     val rdIn      = Input(UInt(5.W))
-    val rdOut     = Input(UInt(5.W))
+    val rdOut     = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
   })
 
   /* 
     TODO: Perform the ALU operation based on the uopc
   */
-
-  io.rdOut := io.rdIn
 
     when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
@@ -307,6 +302,8 @@ class EX extends Module {
     }.otherwise{
     io.aluResult := 5.U
   }
+
+  io.rdOut := io.rdIn
 }
 
 // -----------------------------------------
@@ -332,11 +329,9 @@ class WB extends Module {
     // What inputs and / or outputs does this pipeline stage need?
     val res = Input(UInt(32.W))
     val rd  = Input(UInt(5.W))
-    val wIn = Input(Bool())
-
     val addr = Output(UInt(5.W))
     val data = Output(UInt(32.W))
-    val wOut = Output(Bool())
+
   })
 
   /* 
@@ -345,8 +340,6 @@ class WB extends Module {
    */
   io.addr := io.rd
   io.data := io.res
-  io.wOut := io.rd =/= 0.U
-
 }
 
 
@@ -375,21 +368,23 @@ class IFBarrier extends Module {
 class IDBarrier extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this barrier need?
-    val instrOut = Input(UInt(32.W))
-    val PCOut    = Input(UInt(32.W))
-    val instrIn  = Output(UInt(32.W))
-    val PCIn     = Output(UInt(32.W))
+    val instrOut = Output(UInt(32.W))
+    val PCOut    = Output(UInt(32.W))
+    val instrIn  = Input(UInt(32.W))
+    val PCIn     = Input(UInt(32.W))
   })
 
   /* TODO: Define registers */
     val instrReg = RegInit(0.U(32.W))
     val pcReg    = RegInit(0.U(32.W))
-   /* TODO: Fill registers from the inputs and write regioster values to the outputs
-   */
-   instrReg    := io.instrOut
-   pcReg       := io.PCOut
-   io.instrIn := instrReg
-   io.PCIn    := pcReg
+
+
+   /* TODO: Fill registers from the inputs and write regioster values to the outputs*/
+   instrReg    := io.instrIn
+   pcReg       := io.PCIn
+
+   io.instrOut := instrReg
+   io.PCOut    := pcReg
 
 }
 
@@ -403,15 +398,15 @@ class EXBarrier extends Module {
     // What inputs and / or outputs does this barrier need?
     val operandA_in = Input(UInt(32.W))
     val operandB_in = Input(UInt(32.W))
-    val microOP_in  = Input(UInt(8.W))
+    val microOP_in  = Input(uopc())
     val imm_in      = Input(UInt(12.W))
-    val rd_in     = Input(UInt(5.W))
+    val rd_in       = Input(UInt(5.W))
 
     val operandA_out = Output(UInt(32.W))
     val operandB_out = Output(UInt(32.W))
-    val microOP_out  = Output(UInt(8.W))
+    val microOP_out  = Output(uopc())
     val imm_out      = Output(UInt(12.W))
-    val rd_out     = Output(UInt(5.W))
+    val rd_out       = Output(UInt(5.W))
 
   })
 
@@ -419,9 +414,9 @@ class EXBarrier extends Module {
 
   val operandA_reg = Reg(UInt(32.W))
   val operandB_reg = Reg(UInt(32.W))
-  val microOP_reg  = Reg(UInt(8.W))
+  val microOP_reg  = Reg(uopc())
   val imm_reg      = Reg(UInt(12.W))
-  val rd_reg     = Reg(UInt(5.W))
+  val rd_reg       = Reg(UInt(5.W))
 
   /* TODO: Fill registers from the inputs and write regioster values to the outputs */
 
@@ -429,13 +424,13 @@ class EXBarrier extends Module {
   operandB_reg := io.operandB_in
   microOP_reg  := io.microOP_in
   imm_reg      := io.imm_in
-  rd_reg     := io.rd_in
+  rd_reg       := io.rd_in
  
   io.operandA_out := operandA_reg
   io.operandB_out := operandB_reg
-  io.microOP_out   := microOP_reg 
-  io.imm_out       := imm_reg     
-  io.rd_out      := rd_reg    
+  io.microOP_out  := microOP_reg 
+  io.imm_out      := imm_reg
+  io.rd_out       := rd_reg
 }
 
 
@@ -501,6 +496,8 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
     val check_res = Output(UInt(32.W))
   })
 
+  val regFile = Module(new regFile)
+  regFile.io.write.wr_writeEnable := 0.U //disabling write enable
 
   /* 
    * TODO: Instantiate Barriers
@@ -526,9 +523,6 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   /* 
    * TODO: Instantiate Register File
    */
-  //id_ex_bar.io.
-  val registerFile = Module(new regFile)
-
   io.check_res := 0.U // necessary to make the empty design buildable TODO: change this
 
   /* 
@@ -542,11 +536,13 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   // getting id stage inputs from if/id barrier
   id_stage.io.instrIn := if_id_bar.io.instrOut
-  id_stage.io.PCIn    := if_id_bar.io.PCOut
+
+  regFile.io.req.rr_rs1 := id_stage.io.operandA_out
+  regFile.io.req.rr_rs2 := id_stage.io.operandB_out
 
   // getting id/ex barrier inputs from id stage outputs
-  id_ex_bar.io.operandA_in := id_stage.io.operandA_out
-  id_ex_bar.io.operandB_in := id_stage.io.operandB_out
+  id_ex_bar.io.operandA_in := regFile.io.resp.rp_d1
+  id_ex_bar.io.operandB_in := regFile.io.resp.rp_d2
   id_ex_bar.io.microOP_in  := id_stage.io.microOP
   id_ex_bar.io.imm_in      := id_stage.io.imm
   id_ex_bar.io.rd_in       := id_stage.io.rdOUt
@@ -567,6 +563,14 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   mem_wb_bar.io.data_in := ex_mem_bar.io.data_out
   mem_wb_bar.io.addr_in := ex_mem_bar.io.rd_out
 
+  // getting wb stage inputs from mem/wb barrier output
+  wb_stage.io.res := mem_wb_bar.io.data_out
+  wb_stage.io.rd  := mem_wb_bar.io.addr_out
 
+  regFile.io.write.wr_writeEnable := 1.U        // enabling writing
+  regFile.io.write.wr_rd := wb_stage.io.addr
+  regFile.io.write.wr_d  := wb_stage.io.data
+
+  io.check_res := wb_stage.io.data
 }
 
