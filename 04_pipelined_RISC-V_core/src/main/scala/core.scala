@@ -152,7 +152,6 @@ class regFile extends Module {
 
 }
 
-
 // -----------------------------------------
 // Fetch Stage
 // -----------------------------------------
@@ -178,8 +177,8 @@ class IF (BinaryFile: String) extends Module {
    PC := PC + 4.U
    val instr = IMem(PC>>2)
 
+  io.PCOut := PC
    io.instrOut := instr
-   io.PCOut := PC
 
   
 }

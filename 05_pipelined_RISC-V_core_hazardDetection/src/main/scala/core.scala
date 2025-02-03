@@ -84,7 +84,7 @@ class regFile extends Module {
 })
 
   val regFile = Mem(32, UInt(32.W))
-  regFile(0) := 0.U                           // hard-wired zero for x0
+  regFile.write(0.U, 0.U)                           // hard-wired zero for x0
 
   when(io.write_req.wr_en){
     when(io.write_req.addr =/= 0.U){
@@ -105,19 +105,21 @@ class ForwardingUnit extends Module {
     val idex_bar_rs2 = Input(UInt(5.W))
     val exme_bar_rd  = Input(UInt(5.W))
     val mewb_bar_rd  = Input(UInt(5.W))
-
-    //inputs to forward
-    val exme_bar_result = Input(UInt(32.W))
-    val mewb_bar_result = Input(UInt(32.W))
-
-    val operand_a = Output(UInt(32.W))
-    val operand_b = Output(UInt(32.W))
+    //val wb_rd        = Input(UInt(5.W))
 
     //none for memory because there are no memory operations
-    val forward_a = Output(UInt(2.W))
-    val forward_b = Output(UInt(2.W))
+    val forward_a    = Output(UInt(2.W))
+    val forward_b    = Output(UInt(2.W))
+
+    val ex_reg_w     = Input(Bool())
+    val mem_reg_w    = Input(Bool())
+    val wb_reg_w     = Input(Bool())
   })
 
+    io.forward_a := 0.U
+    io.forward_b := 0.U
+
+  
 
 
   /* TODO:
@@ -125,21 +127,23 @@ class ForwardingUnit extends Module {
      Which pipeline stages are affected and how can a potential hazard be detected there?
   */
   //RAW hazards
-  when(io.idex_bar_rs1 === io.exme_bar_rd ){
-      io.forward_a := 1.U
-  }.elsewhen(io.idex_bar_rs1 === io.mewb_bar_rd) {
-    io.forward_a := 0.U
-  }.otherwise{
-    io.forward_a := 2.U
-  }
 
-  when(io.idex_bar_rs2 === io.exme_bar_rd){
+  when(io.ex_reg_w && (io.exme_bar_rd =/= 0.U) && (io.exme_bar_rd === io.idex_bar_rs1)) {
+    io.forward_a := 1.U
+  }.elsewhen(io.mem_reg_w && (io.mewb_bar_rd =/= 0.U) && (io.mewb_bar_rd === io.idex_bar_rs1)) {
+    io.forward_a := 2.U
+  }/*.elsewhen(io.wb_reg_w && (io.wb_rd =/= 0.U) && (io.wb_rd === io.idex_bar_rs1)) {
+    io.forward_a := 3.U
+  }*/
+
+  when(io.ex_reg_w && (io.exme_bar_rd =/= 0.U) && (io.exme_bar_rd === io.idex_bar_rs2)) {
     io.forward_b := 1.U
-  }.elsewhen(io.idex_bar_rs2 === io.mewb_bar_rd){
-    io.forward_b := 0.U
-  }.otherwise{
+  }.elsewhen(io.mem_reg_w && (io.mewb_bar_rd =/= 0.U) && (io.mewb_bar_rd === io.idex_bar_rs2)) {
     io.forward_b := 2.U
-  }
+  }/*.elsewhen(io.wb_reg_w && (io.wb_rd =/= 0.U) && (io.wb_rd === io.idex_bar_rs2)) {
+    io.forward_b := 3.U
+  }*/
+  
 
   //WAW hazards cannot occur here
   //WAR hazards cannot occur here
@@ -149,19 +153,26 @@ class ForwardingUnit extends Module {
      Forwarding Selection:
      Select the appropriate value to forward from one stage to another based on the hazard checks.
   */
-  //hazards on rs1
+ /* //hazards on rs1
   when( io.forward_a === 1.U){
     io.operand_a := io.exme_bar_result
-  }.elsewhen(io.forward_a === 0.U){
+  }.elsewhen(io.forward_a === 2.U){
     io.operand_a := io.mewb_bar_result
-  } //could need an otherwise with default value
+  }.otherwise{
+    io.operand_a := 0.U
+  }
 
   //hazards on rs2
   when( io.forward_b === 1.U){
     io.operand_b := io.exme_bar_result
-  }.elsewhen(io.forward_b === 0.U){
+  }.elsewhen(io.forward_b === 2.U){
     io.operand_b := io.mewb_bar_result
-  }
+  }.otherwise{
+    io.operand_b := 0.U
+  }*/
+  printf(p"idex_bar_rs1: ${io.idex_bar_rs1}  idex_bar_rs2: ${io.idex_bar_rs2}\n")
+  printf(p"exme_bar_rd: ${io.exme_bar_rd}  mewb_bar_rd: ${io.mewb_bar_rd}\n")
+  printf(p"forward a: ${io.forward_a}  forward b:${io.forward_b}\n")
 
 }
 
@@ -295,6 +306,7 @@ class ID extends Module {
 
   io.rs1     := rs1
   io.rs2     := rs2
+  printf(p"funct3: ${funct3}\n")
   
 }
 
@@ -556,29 +568,43 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
   */
   ForwardingUnit.io.idex_bar_rs1 := IDBarrier.io.outRS1
   ForwardingUnit.io.idex_bar_rs2 := IDBarrier.io.outRS2
-  ForwardingUnit.io.exme_bar_rd := EXBarrier.io.outRD
-  ForwardingUnit.io.mewb_bar_rd := MEMBarrier.io.outRD
-  ForwardingUnit.io.exme_bar_result := EXBarrier.io.outAluResult
-  ForwardingUnit.io.mewb_bar_result := MEMBarrier.io.outAluResult
-  ForwardingUnit.io.forward_a := 3.U
-  ForwardingUnit.io.forward_b := 3.U
+  ForwardingUnit.io.exme_bar_rd  := EXBarrier.io.outRD
+  ForwardingUnit.io.mewb_bar_rd  := MEMBarrier.io.outRD
+  //ForwardingUnit.io.wb_rd        := WB.io.rd
+  ForwardingUnit.io.ex_reg_w := (EXBarrier.io.outRD =/= 0.U)
+  ForwardingUnit.io.mem_reg_w := (MEMBarrier.io.outRD =/= 0.U)
+  ForwardingUnit.io.wb_reg_w := (WB.io.rd =/= 0.U)
+
 
   /* 
     TODO: Implement MUXes to select which values are sent to the EX stage as operands
   */
-  EX.io.operandA := Mux(ForwardingUnit.io.forward_a === 2.U,IDBarrier.io.outOperandA, ForwardingUnit.io.operand_a)
-  EX.io.operandB := Mux(ForwardingUnit.io.forward_b === 2.U,IDBarrier.io.outOperandB, ForwardingUnit.io.operand_b)
+  printf(p"in main class before mux, forward a= ${ForwardingUnit.io.forward_a}  forward b= ${ForwardingUnit.io.forward_b}\n")
+  /*EX.io.operandA := Mux(ForwardingUnit.io.forward_a === 0.U,IDBarrier.io.outOperandA, ForwardingUnit.io.operand_a)
+  EX.io.operandB := Mux(ForwardingUnit.io.forward_b === 0.U,IDBarrier.io.outOperandB, ForwardingUnit.io.operand_b)*/
   
   EX.io.uop := IDBarrier.io.outUOP
 
   /* 
     TODO: Connect operand inputs in EX stage to forwarding logic
   */
-  EX.io.operandA := ForwardingUnit.io.operand_a
-  EX.io.operandB := ForwardingUnit.io.operand_b //confusion
+  //EX.io.operandA := ForwardingUnit.io.operand_a
+  //EX.io.operandB := ForwardingUnit.io.operand_b //confusion
 
-  EX.io.operandA := 0.U // just there to make empty project buildable
-  EX.io.operandB := 0.U // just there to make empty project buildable
+  //EX.io.operandA := 0.U // just there to make empty project buildable
+  //EX.io.operandB := 0.U // just there to make empty project buildable
+
+  EX.io.operandA := MuxLookup(ForwardingUnit.io.forward_a, IDBarrier.io.outOperandA, Array(
+    1.U -> EXBarrier.io.outAluResult,
+    2.U -> MEMBarrier.io.outAluResult,
+    3.U -> WB.io.aluResult
+  ))
+
+  EX.io.operandB := MuxLookup(ForwardingUnit.io.forward_b, IDBarrier.io.outOperandB, Array(
+    1.U -> EXBarrier.io.outAluResult,
+    2.U -> MEMBarrier.io.outAluResult,
+    3.U -> WB.io.aluResult
+  ))
 
   EXBarrier.io.inRD         := IDBarrier.io.outRD
   EXBarrier.io.inAluResult  := EX.io.aluResult
