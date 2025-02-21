@@ -379,7 +379,7 @@ class WB extends Module {
     val outRD      = Output(UInt(5.W))// output added
   })
 
- io.regFileReq.addr  := io.rd
+ io.regFileReq.addr  := io.rd // output added
  io.regFileReq.data  := io.aluResult
  io.regFileReq.wr_en := io.aluResult =/= "h_FFFF_FFFF".U  // could depend on the current uopc, if ISA is extendet beyond R-type and I-type instructions
 
