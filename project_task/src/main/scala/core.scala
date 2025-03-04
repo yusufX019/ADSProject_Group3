@@ -193,29 +193,58 @@ class regFile extends Module {
 // Fetch Stage
 // -----------------------------------------
 
-class IF (BinaryFile: String) extends Module {
+class IF (BinaryFile: String, BTB: BTB) extends Module {
   val io = IO(new Bundle {
     // What inputs and / or outputs does this pipeline stage need?
     val instrOut = Output(UInt(32.W))
     val PCOut = Output(UInt(32.W))
   })
 
-  /* 
-    TODO: Initialize the IMEM as described in the task 
-          and handle the instruction fetch.*/
+  // Implementation of the BTB: inputs come from EX stage
+  val update = Input(Bool())
+  val updatePC = Input(UInt(32.W))
+  val updateTarget = Input(UInt(32.W))
+  val mispredicted = Input(Bool())
+
   val IMem = Mem(4096, UInt(32.W))
-  loadMemoryFromFile(IMem, BinaryFile) //maybe mising declaration
+  loadMemoryFromFile(IMem, BinaryFile)
 
+  // In this Project, we consider branches and jumps, differently from previous tasks
   val PC = RegInit(0.U(32.W))
+  
+  // Outputs from the BTB
+  val valid = Wire(Bool())
+  val target = Wire(UInt(32.W))
+  val predictTaken = Wire(Bool())
 
-   /* TODO: Update the program counter (no jumps or branches, 
-          next PC always reads next address from IMEM)
-   */
-   PC := PC + 4.U
-   val instr = IMem(PC>>2)
+  // BTB I/O connection
+  BTB.io.PC := PC
+  valid := BTB.io.valid
+  target := BTB.io.target
+  predictTaken := BTB.io.predictTaken
+
+  // PC update (using the BTB)
+  when (valid && predictTaken) {
+    PC := target // we use the predicted target if the branch is taken
+  } .otherwise {
+    PC := PC + 4.U // as seen in the previous tasks: default
+  }
+
+  val instr = IMem(PC >> 2)
 
   io.PCOut := PC
+<<<<<<< HEAD
    io.instrOut := instr
+=======
+  io.instrOut := instr
+
+  // BTB inputs update from the EX stage
+  BTB.io.update := io.update
+  BTB.io.updatePC := io.updatePC
+  BTB.io.updateTarget := io.updateTarget
+  BTB.io.mispredicted := io.mispredicted
+  
+>>>>>>> origin/lorenzo
 }
 
 // -----------------------------------------
