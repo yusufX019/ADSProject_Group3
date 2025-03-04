@@ -1,62 +1,5 @@
 // ADS I Class Project
-// Pipelined RISC-V Core
-//
-// Chair of Electronic Design Automation, RPTU in Kaiserslautern
-// File created on 01/15/2023 by Tobias Jauch (@tojauch)
-
-/*
-The goal of this task is to extend the 5-stage multi-cycle 32-bit RISC-V core from the previous task to a pipelined processor. 
-All steps and stages have the same functionality as in the multi-cycle version from task 03, but are supposed to handle different instructions in each stage simultaneously.
-This design implements a pipelined RISC-V 32-bit core with five stages: IF (Fetch), ID (Decode), EX (Execute), MEM (Memory), and WB (Writeback).
-
-    Data Types:
-        The uopc enumeration data type (enum) defines micro-operation codes representing ALU operations according to the RV32I subset used in the previous tasks.
-
-    Register File (regFile):
-        The regFile module represents the register file, which has read and write ports.
-        It consists of a 32-entry register file (x0 is hard-wired to zero).
-        Reading from and writing to the register file is controlled by the read request (regFileReadReq), read response (regFileReadResp), and write request (regFileWriteReq) interfaces.
-
-    Fetch Stage (IF Module):
-        The IF module represents the instruction fetch stage.
-        It includes an instruction memory (IMem) of size 4096 words (32-bit each).
-        Instructions are loaded from a binary file (provided to the testbench as a parameter) during initialization.
-        The program counter (PC) is used as an address to access the instruction memory, and one instruction is fetched in each cycle.
-
-    Decode Stage (ID Module):
-        The ID module performs instruction decoding and generates control signals.
-        It extracts opcode, operands, and immediate values from the instruction.
-        It uses the uopc (micro-operation code) Enum to determine the micro-operation (uop) and sets control signals accordingly.
-        The register file requests are generated based on the operands in the instruction.
-
-    Execute Stage (EX Module):
-        The EX module performs the arithmetic or logic operation based on the micro-operation code.
-        It takes two operands and produces the result (aluResult).
-
-    Memory Stage (MEM Module):
-        The MEM module does not perform any memory operations in this basic CPU design.
-
-    Writeback Stage (WB Module):
-        The WB module writes the result back to the register file.
-
-    IF, ID, EX, MEM, WB Barriers:
-        IFBarrier, IDBarrier, EXBarrier, MEMBarrier, and WBBarrier modules serve as pipeline registers to separate the pipeline stages.
-        They hold the intermediate results of each stage until the next clock cycle.
-
-    PipelinedRV32Icore (PipelinedRV32Icore Module):
-        The top-level module that connects all the pipeline stages, barriers and the register file.
-        It interfaces with the external world through check_res, which is the result produced by the core.
-
-Overall Execution Flow:
-
-    1) Instructions are fetched from the instruction memory in the IF stage.
-    2) The fetched instruction is decoded in the ID stage, and the corresponding micro-operation code is determined.
-    3) The EX stage executes the operation using the operands.
-    4) The MEM stage does not perform any memory operations in this design.
-    5) The result is written back to the register file in the WB stage.
-
-Note that this design only represents a simplified RISC-V pipeline. The structure could be equipped with further instructions and extension to support a real RISC-V ISA.
-*/
+// Pipelined RISC-V Core with BTB
 
 package core_tile
 
@@ -72,7 +15,7 @@ import chisel3.util.experimental.loadMemoryFromFile
 //bundles within the btb
 class BtbEntry extends Bundle {
   val valid = UInt(1.W)
-  val tag = UInt(5.W) //could be differnet length
+  val tag = UInt(29.W)
   val target_address = UInt(32.W)
   val prediction = UInt(2.W) 
 }
@@ -81,6 +24,7 @@ class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
   val LRU_counter = UInt(1.W) //if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
 }
+val index = io.PC
 
 //states for btb state machine
 object StateBranchTargetBuffer {
@@ -90,7 +34,7 @@ object StateBranchTargetBuffer {
 }
 
 //defintion of btb
-class BranchTargetBuffer{
+class BranchTargetBuffer extends Module{
   import StateBranchTargetBuffer.State
   import StateBranchTargetBuffer.State._
   //definiton inputs/outputs
@@ -107,6 +51,7 @@ class BranchTargetBuffer{
   })
   //structure
   val btb = RegInit(VecInit(Seq.fill(8)(0.U.asTypeOf(new BtbSet()))))
+
   //state machine
   //this is like the scheme 
   val stateBtb = State()
@@ -123,23 +68,23 @@ class BranchTargetBuffer{
     }
     is(WeakNotTaken){//01
       when(mispredicted){
-        stateBtb := StrongTaken
-      }.otherwise{
-        stateBtb := StrongNotTaken
-      }
-    }
-    is(StrongTaken){ //10
-      when(mispredicted){
         stateBtb := WeakTaken
       }.otherwise{
-        stateBtb := StrongTaken
+        stateBtb := StrongNotTaken
       }
     }
-    is(WeakTaken){ //11
-       when(mispredicted){
+    is(StrongTaken){ //11
+      when(mispredicted){
         stateBtb := StrongNotTaken
+      }.otherwise{
+        stateBtb := WeakTaken
+      }
+    }
+    is(WeakTaken){ //10
+       when(mispredicted){
+        stateBtb := StrongTaken
        }.otherwise{
-        stateBtb :=StrongTaken
+        stateBtb :=WeakTaken
        }
     }
   }
@@ -169,6 +114,13 @@ object uopc extends ChiselEnum {
   val isSLTU  = Value(0x0A.U)
 
   val isADDI  = Value(0x10.U)
+
+  val isJAL  = Value(0x11.U)
+  val isJALR = Value(0x12.U)
+  val isBEQ  = Value(0x13.U)
+  val isBNE  = Value(0x14.U)
+  val isBLT  = Value(0x15.U)
+  val isBGE  = Value(0x16.U)
 
   val invalid = Value(0xFF.U)
 }
@@ -211,7 +163,7 @@ class regFile extends Module {
         // 2 ports for reading and 1 for writing
 })
 
-  /* 
+  /*
     TODO: Initialize the register file as described in the task 
           and handle the read and write requests
    */
@@ -264,10 +216,7 @@ class IF (BinaryFile: String) extends Module {
 
   io.PCOut := PC
    io.instrOut := instr
-
-  
 }
-
 
 // -----------------------------------------
 // Decode Stage
@@ -294,43 +243,68 @@ class ID extends Module {
   val rs2 = io.instrIn(24,20)
   val funct7 = io.instrIn(31,25)
   val imm_value = io.instrIn(31,20)
+  val imm_rs2 = io.instrIn(31,25)
+  val imm_rs1 = io.instrIn(11,7)
 
   /* 
     Determine the uop based on the disassembled instruction*/
 
-   when(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isADD
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b011".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isSLTU
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b111".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isAND
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b110".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isOR
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b100".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isXOR
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b001".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isSLL
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isSRL
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b000".U && funct7 === "b0100000".U){
-    io.microOP := uopc.isSUB
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b101".U && funct7 === "b0100000".U){
-    io.microOP := uopc.isSRA
-   }.elsewhen(opcode === "b0010011".U && funct3 === "b000".U){
-    io.microOP := uopc.isADDI
-   }.elsewhen(opcode === "b0110011".U && funct3 === "b010".U && funct7 === "b0000000".U){
-    io.microOP := uopc.isSLT
-   }.otherwise{
+   when(opcode === "b0110011".U){//R-type instr
+    when(funct7 === "b0000000".U){ //most r-type instr
+     when(funct3 === "b000"){
+      io.microOP := uopc.isADD
+     }.elsewhen(funct3 === "b011"){
+      io.microOP := uopc.isSLTU
+     }.elsewhen(funct3 === "b111"){
+      io.microOP := uopc.isAND
+     }.elsewhen(funct3 === "b110"){
+      io.microOP := uopc.isOR
+     }.elsewhen(funct3 === "b100"){
+      io.microOP := uopc.isXOR
+     }.elsewhen(funct3 === "b001"){
+      io.microOP := uopc.isSLL
+     }.elsewhen(funct3 === "b101"){
+      io.microOP := uopc.isSRL
+     }
+    }.elsewhen(funct7 === "b0100000".U){ //for sub and sra
+    when(funct3 === "b000"){
+      io.microOP := uopc.isSUB
+     }.elsewhen(funct3 === "b101"){
+      io.microOP := uopc.isSRA
+     }
+    }
+   }.elsewhen(opcode === "b0010011".U){ //I-type
+      when(funct3 === "b000".U){ //add imm
+        io.microOP := uopc.isADDI
+      }
+   }.elsewhen(opcode === "b1101111".U){ //jump 
+      io.microOP := uopc.isJAL
+   }.elsewhen(opcode === "b1100111".U){ //jr
+      when(funct3 === "b000".U){
+        io.microOP := uopc.isJALR
+      }
+   }.elsewhen(opcode === "b1100011".U){ //branch
+      when(funct3 === "b000"){
+      io.microOP := uopc.isBEQ
+     }.elsewhen(funct3 === "b001"){
+      io.microOP := uopc.isBNE
+     }.elsewhen(funct3 === "b100"){
+      io.microOP := uopc.isBLT
+     }.elsewhen(funct3 === "b101"){
+      io.microOP := uopc.isBGE
+     }
+   }otherwise{
     io.microOP := uopc.invalid
    }
 
   /* 
-   * TODO: Read the operands from teh register file
+   * TODO: Read the operands from the register file
    */
   io.operandA_out := rs1
   io.operandB_out := rs2
   io.imm := imm_value
   io.rdOUt := rd
+  
 }
 
 // -----------------------------------------
@@ -352,7 +326,7 @@ class EX extends Module {
   /* 
     TODO: Perform the ALU operation based on the uopc
   */
-
+    //add the comparison of branch/jump instr
     when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
     }.elsewhen(io.microOP === isADD) {  
@@ -384,7 +358,7 @@ class EX extends Module {
     }.elsewhen(io.microOP === isSRA) {
       io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt 
     }.otherwise{
-    io.aluResult := 5.U
+    io.aluResult := 5.U//why 5?
   }
 
   io.rdOut := io.rdIn
