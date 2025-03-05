@@ -198,34 +198,20 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
     // What inputs and / or outputs does this pipeline stage need?
     val instrOut = Output(UInt(32.W))
     val PCOut = Output(UInt(32.W))
+    val valid = Input(UInt(1.W))
+    val target = Input(UInt(32.W))
+    val predictTaken = Input(UInt(1.W))
   })
-
-  // Implementation of the BTB: inputs come from EX stage
-  val update = Input(Bool())
-  val updatePC = Input(UInt(32.W))
-  val updateTarget = Input(UInt(32.W))
-  val mispredicted = Input(Bool())
 
   val IMem = Mem(4096, UInt(32.W))
   loadMemoryFromFile(IMem, BinaryFile)
 
   // In this Project, we consider branches and jumps, differently from previous tasks
   val PC = RegInit(0.U(32.W))
-  
-  // Outputs from the BTB
-  val valid = Wire(Bool())
-  val target = Wire(UInt(32.W))
-  val predictTaken = Wire(Bool())
-
-  // BTB I/O connection
-  BTB.io.PC := PC
-  valid := BTB.io.valid
-  target := BTB.io.target
-  predictTaken := BTB.io.predictTaken
 
   // PC update (using the BTB)
-  when (valid && predictTaken) {
-    PC := target // we use the predicted target if the branch is taken
+  when (io.valid && io.predictTaken) {
+    PC := io.target // we use the predicted target if the branch is taken
   } .otherwise {
     PC := PC + 4.U // as seen in the previous tasks: default
   }
@@ -233,18 +219,8 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
   val instr = IMem(PC >> 2)
 
   io.PCOut := PC
-<<<<<<< HEAD
-   io.instrOut := instr
-=======
   io.instrOut := instr
-
-  // BTB inputs update from the EX stage
-  BTB.io.update := io.update
-  BTB.io.updatePC := io.updatePC
-  BTB.io.updateTarget := io.updateTarget
-  BTB.io.mispredicted := io.mispredicted
   
->>>>>>> origin/lorenzo
 }
 
 // -----------------------------------------
@@ -262,9 +238,6 @@ class ID extends Module {
     val operandB_out = Output(UInt(32.W))
   })
 
-  /* 
-   * TODO: Any internal signals needed?
-   */
   val opcode = io.instrIn(6, 0)
   val rd = io.instrIn(11,7)
   val funct3 = io.instrIn(14,12)
@@ -272,8 +245,8 @@ class ID extends Module {
   val rs2 = io.instrIn(24,20)
   val funct7 = io.instrIn(31,25)
   val imm_value = io.instrIn(31,20)
-  val imm_rs2 = io.instrIn(31,25)
-  val imm_rs1 = io.instrIn(11,7)
+  //val imm_rs2 = io.instrIn(31,25) this is for offset
+  //val imm_rs1 = io.instrIn(11,7)
 
   /* 
     Determine the uop based on the disassembled instruction*/
@@ -326,9 +299,7 @@ class ID extends Module {
     io.microOP := uopc.invalid
    }
 
-  /* 
-   * TODO: Read the operands from the register file
-   */
+
   io.operandA_out := rs1
   io.operandB_out := rs2
   io.imm := imm_value
