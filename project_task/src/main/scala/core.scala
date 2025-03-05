@@ -17,12 +17,12 @@ class BtbEntry extends Bundle {
   val valid = UInt(1.W)
   val tag = UInt(29.W)
   val target_address = UInt(32.W)
-  val prediction = UInt(2.W) 
+  val prediction = UInt(2.W) // 2 bit FSM
 }
 
 class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
-  val LRU_counter = UInt(1.W) //if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
+  val LRU_counter = UInt(1.W) // if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
 }
 val index = io.PC
 
@@ -201,10 +201,10 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
   })
 
   // Implementation of the BTB: inputs come from EX stage
-  val update = Input(Bool())
+  val update = Input(UInt(1.W))
   val updatePC = Input(UInt(32.W))
   val updateTarget = Input(UInt(32.W))
-  val mispredicted = Input(Bool())
+  val mispredicted = Input(UInt(1.W))
 
   val IMem = Mem(4096, UInt(32.W))
   loadMemoryFromFile(IMem, BinaryFile)
@@ -213,9 +213,9 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
   val PC = RegInit(0.U(32.W))
   
   // Outputs from the BTB
-  val valid = Wire(Bool())
+  val valid = Wire(UInt(1.W))
   val target = Wire(UInt(32.W))
-  val predictTaken = Wire(Bool())
+  val predictTaken = Wire(UInt(1.W))
 
   // BTB I/O connection
   BTB.io.PC := PC
@@ -233,9 +233,6 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
   val instr = IMem(PC >> 2)
 
   io.PCOut := PC
-<<<<<<< HEAD
-   io.instrOut := instr
-=======
   io.instrOut := instr
 
   // BTB inputs update from the EX stage
@@ -244,7 +241,6 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
   BTB.io.updateTarget := io.updateTarget
   BTB.io.mispredicted := io.mispredicted
   
->>>>>>> origin/lorenzo
 }
 
 // -----------------------------------------
@@ -350,13 +346,19 @@ class EX extends Module {
     val rdIn      = Input(UInt(5.W))
     val rdOut     = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
+
+    // Outputs to update BTB
+    val update = Output(UInt(1.W))
+    val updatePC = Output(UInt(32.W))
+    val updateTarget = Output(UInt(32.W))
+    val mispredicted = Output(UInt(1.W))
   })
 
-  /* 
-    TODO: Perform the ALU operation based on the uopc
-  */
-    //add the comparison of branch/jump instr
-    when(io.microOP === isADDI) {
+  val branchTaken = Wire(UInt(1.W))
+  branchTaken := 0.UInt
+
+  // operations and branch evaluation
+  when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
     }.elsewhen(io.microOP === isADD) {  
       io.aluResult := (io.operandA.asSInt + io.operandB.asSInt).asUInt 
@@ -385,10 +387,30 @@ class EX extends Module {
     }.elsewhen(io.microOP === isSUB) {
       io.aluResult := io.operandA - io.operandB 
     }.elsewhen(io.microOP === isSRA) {
-      io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt 
+      io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt // whatever comes next might not be correct
+    }.elsewhen(io.microOP === isBEQ) {
+      branchTaken := io.operandA === io.operandB
+    }.elsewhen(io.microOP === isBNE) {
+      branchTaken := io.operandA =/= io.operandB
+    }.elsewhen(io.microOP === isBLT) {
+      branchTaken := io.operandA.asSInt < io.operandB.asSInt
+    }.elsewhen(io.microOP === isBGE) {
+      branchTaken := io.operandA.asSInt >= io.operandB.asSInt
     }.otherwise{
-    io.aluResult := 5.U//why 5?
-  }
+    io.aluResult := 0.U // not sure
+    }
+
+    // Branch target computation
+  val branchTarget = (io.PC.asSInt + io.imm.asSInt).asUInt
+
+  // Check of the BTB prediction
+  mispredicted = (branchTaken =/= io.predictTaken) || (branchTaken && (branchTarget =/= io.predictTarget))
+
+  //update BTB on misprediction
+  io.update := mispredicted
+  io.updatePC := io.PC
+  io.updateTarget := branchTarget
+  io.mispredicted := mispredicted
 
   io.rdOut := io.rdIn
 }
