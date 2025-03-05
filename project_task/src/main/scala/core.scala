@@ -198,30 +198,16 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
     // What inputs and / or outputs does this pipeline stage need?
     val instrOut = Output(UInt(32.W))
     val PCOut = Output(UInt(32.W))
+    val valid = Input(UInt(1.W))
+    val target = Input(UInt(32.W))
+    val predictTaken = Input(UInt(1.W))
   })
-
-  // Implementation of the BTB: inputs come from EX stage
-  val update = Input(UInt(1.W))
-  val updatePC = Input(UInt(32.W))
-  val updateTarget = Input(UInt(32.W))
-  val mispredicted = Input(UInt(1.W))
 
   val IMem = Mem(4096, UInt(32.W))
   loadMemoryFromFile(IMem, BinaryFile)
 
   // In this Project, we consider branches and jumps, differently from previous tasks
   val PC = RegInit(0.U(32.W))
-  
-  // Outputs from the BTB
-  val valid = Wire(UInt(1.W))
-  val target = Wire(UInt(32.W))
-  val predictTaken = Wire(UInt(1.W))
-
-  // BTB I/O connection
-  BTB.io.PC := PC
-  valid := BTB.io.valid
-  target := BTB.io.target
-  predictTaken := BTB.io.predictTaken
 
   // PC update (using the BTB)
   when (valid && predictTaken) {
@@ -234,13 +220,6 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
 
   io.PCOut := PC
   io.instrOut := instr
-
-  // BTB inputs update from the EX stage
-  BTB.io.update := io.update
-  BTB.io.updatePC := io.updatePC
-  BTB.io.updateTarget := io.updateTarget
-  BTB.io.mispredicted := io.mispredicted
-  
 }
 
 // -----------------------------------------
@@ -258,9 +237,6 @@ class ID extends Module {
     val operandB_out = Output(UInt(32.W))
   })
 
-  /* 
-   * TODO: Any internal signals needed?
-   */
   val opcode = io.instrIn(6, 0)
   val rd = io.instrIn(11,7)
   val funct3 = io.instrIn(14,12)
@@ -268,11 +244,10 @@ class ID extends Module {
   val rs2 = io.instrIn(24,20)
   val funct7 = io.instrIn(31,25)
   val imm_value = io.instrIn(31,20)
-  val imm_rs2 = io.instrIn(31,25)
-  val imm_rs1 = io.instrIn(11,7)
+  // val imm_rs2 = io.instrIn(31,25) this is for offsets
+  // val imm_rs1 = io.instrIn(11,7)
 
-  /* 
-    Determine the uop based on the disassembled instruction*/
+  /* Determine the uop based on the disassembled instruction*/
 
    when(opcode === "b0110011".U){//R-type instr
     when(funct7 === "b0000000".U){ //most r-type instr
@@ -322,9 +297,6 @@ class ID extends Module {
     io.microOP := uopc.invalid
    }
 
-  /* 
-   * TODO: Read the operands from the register file
-   */
   io.operandA_out := rs1
   io.operandB_out := rs2
   io.imm := imm_value
