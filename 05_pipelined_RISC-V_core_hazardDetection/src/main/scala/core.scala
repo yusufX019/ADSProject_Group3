@@ -153,7 +153,7 @@ class ForwardingUnit extends Module {
      Forwarding Selection:
      Select the appropriate value to forward from one stage to another based on the hazard checks.
   */
-  //hazards on rs1
+ /* //hazards on rs1
   when( io.forward_a === 1.U){
     io.operand_a := io.exme_bar_result
   }.elsewhen(io.forward_a === 2.U){
@@ -592,6 +592,18 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
 
   //EX.io.operandA := 0.U // just there to make empty project buildable
   //EX.io.operandB := 0.U // just there to make empty project buildable
+
+  EX.io.operandA := MuxLookup(ForwardingUnit.io.forward_a, IDBarrier.io.outOperandA, Array(
+    1.U -> EXBarrier.io.outAluResult,
+    2.U -> MEMBarrier.io.outAluResult,
+    3.U -> WB.io.aluResult
+  ))
+
+  EX.io.operandB := MuxLookup(ForwardingUnit.io.forward_b, IDBarrier.io.outOperandB, Array(
+    1.U -> EXBarrier.io.outAluResult,
+    2.U -> MEMBarrier.io.outAluResult,
+    3.U -> WB.io.aluResult
+  ))
 
   EXBarrier.io.inRD         := IDBarrier.io.outRD
   EXBarrier.io.inAluResult  := EX.io.aluResult
