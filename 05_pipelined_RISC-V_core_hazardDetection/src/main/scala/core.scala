@@ -104,6 +104,7 @@ class ForwardingUnit extends Module {
     val idex_bar_rs1 = Input(UInt(5.W))
     val idex_bar_rs2 = Input(UInt(5.W))
 <<<<<<< HEAD
+<<<<<<< HEAD
     val exme_bar_rd  = Input(UInt(5.W))
     val mewb_bar_rd  = Input(UInt(5.W))
     //val wb_rd        = Input(UInt(5.W))
@@ -122,6 +123,8 @@ class ForwardingUnit extends Module {
 
   
 =======
+=======
+>>>>>>> anya
     val exme_bar_rd  = Input(UInt(5.W)) //from EX bar
     val mewb_bar_rd  = Input(UInt(5.W)) // from MEM bar
     val wb_bar_rd    = Input (UInt(5.W)) // from WB bar
@@ -139,7 +142,10 @@ class ForwardingUnit extends Module {
   })
   io.forward_a := 0.U
   io.forward_b := 0.U
+<<<<<<< HEAD
 >>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
 
 
   /* TODO:
@@ -147,6 +153,7 @@ class ForwardingUnit extends Module {
      Which pipeline stages are affected and how can a potential hazard be detected there?
   */
   //RAW hazards
+<<<<<<< HEAD
 <<<<<<< HEAD
 
   when(io.ex_reg_w && (io.exme_bar_rd =/= 0.U) && (io.exme_bar_rd === io.idex_bar_rs1)) {
@@ -167,6 +174,8 @@ class ForwardingUnit extends Module {
   
 
 =======
+=======
+>>>>>>> anya
   when(io.idex_bar_rs1 === io.mewb_bar_rd && io.mewb_bar_rd =/= 0.U ){
       io.forward_a := 2.U
   }.elsewhen(io.idex_bar_rs1 === io.exme_bar_rd && io.exme_bar_rd =/= 0.U) {
@@ -186,7 +195,10 @@ class ForwardingUnit extends Module {
   }.otherwise{
     io.forward_b := 0.U
   }
+<<<<<<< HEAD
 >>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
   //WAW hazards cannot occur here
   //WAR hazards cannot occur here
 
@@ -215,6 +227,7 @@ class ForwardingUnit extends Module {
   }.otherwise{
     io.operand_b := 0.U
 <<<<<<< HEAD
+<<<<<<< HEAD
   }*/
   printf(p"idex_bar_rs1: ${io.idex_bar_rs1}  idex_bar_rs2: ${io.idex_bar_rs2}\n")
   printf(p"exme_bar_rd: ${io.exme_bar_rd}  mewb_bar_rd: ${io.mewb_bar_rd}\n")
@@ -224,6 +237,10 @@ class ForwardingUnit extends Module {
   }
   
 >>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+  }
+  
+>>>>>>> anya
 }
 
 
@@ -428,7 +445,7 @@ class WB extends Module {
     val outRD      = Output(UInt(5.W))// output added
   })
 
- io.regFileReq.addr  := io.rd
+ io.regFileReq.addr  := io.rd // output added
  io.regFileReq.data  := io.aluResult
  io.regFileReq.wr_en := io.aluResult =/= "h_FFFF_FFFF".U  // could depend on the current uopc, if ISA is extendet beyond R-type and I-type instructions
 
@@ -625,6 +642,7 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
   ForwardingUnit.io.idex_bar_rs1 := IDBarrier.io.outRS1
   ForwardingUnit.io.idex_bar_rs2 := IDBarrier.io.outRS2
 <<<<<<< HEAD
+<<<<<<< HEAD
   ForwardingUnit.io.exme_bar_rd  := EXBarrier.io.outRD
   ForwardingUnit.io.mewb_bar_rd  := MEMBarrier.io.outRD
   //ForwardingUnit.io.wb_rd        := WB.io.rd
@@ -633,17 +651,23 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
   ForwardingUnit.io.wb_reg_w := (WB.io.rd =/= 0.U)
 
 =======
+=======
+>>>>>>> anya
   ForwardingUnit.io.exme_bar_rd := EXBarrier.io.outRD
   ForwardingUnit.io.mewb_bar_rd := MEMBarrier.io.outRD
   ForwardingUnit.io.wb_bar_rd := WBBarrier.io.outRD
   ForwardingUnit.io.exme_bar_result := EXBarrier.io.outAluResult
   ForwardingUnit.io.mewb_bar_result := MEMBarrier.io.outAluResult
   ForwardingUnit.io.wb_bar_result := WBBarrier.io.outCheckRes
+<<<<<<< HEAD
 >>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
 
   /* 
     TODO: Implement MUXes to select which values are sent to the EX stage as operands
   */
+<<<<<<< HEAD
 <<<<<<< HEAD
   printf(p"in main class before mux, forward a= ${ForwardingUnit.io.forward_a}  forward b= ${ForwardingUnit.io.forward_b}\n")
   /*EX.io.operandA := Mux(ForwardingUnit.io.forward_a === 0.U,IDBarrier.io.outOperandA, ForwardingUnit.io.operand_a)
@@ -651,6 +675,8 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
   
 =======
 >>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
   EX.io.uop := IDBarrier.io.outUOP
 
   EX.io.operandA := Mux(ForwardingUnit.io.forward_a === 0.U,IDBarrier.io.outOperandA, ForwardingUnit.io.operand_a)
