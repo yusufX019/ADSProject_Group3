@@ -17,12 +17,12 @@ class BtbEntry extends Bundle {
   val valid = UInt(1.W)
   val tag = UInt(29.W)
   val target_address = UInt(32.W)
-  val prediction = UInt(2.W) 
+  val prediction = UInt(2.W) // 2 bit FSM
 }
 
 class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
-  val LRU_counter = UInt(1.W) //if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
+  val LRU_counter = UInt(1.W) // if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
 }
 val index = io.PC
 
@@ -163,10 +163,6 @@ class regFile extends Module {
         // 2 ports for reading and 1 for writing
 })
 
-  /*
-    TODO: Initialize the register file as described in the task 
-          and handle the read and write requests
-   */
 
   val regFile = Mem(32, UInt(32.W))
   regFile.write(0.U,0.U)
@@ -220,7 +216,6 @@ class IF (BinaryFile: String, BTB: BTB) extends Module {
 
   io.PCOut := PC
   io.instrOut := instr
-  
 }
 
 // -----------------------------------------
@@ -248,8 +243,7 @@ class ID extends Module {
   //val imm_rs2 = io.instrIn(31,25) this is for offset
   //val imm_rs1 = io.instrIn(11,7)
 
-  /* 
-    Determine the uop based on the disassembled instruction*/
+  /* Determine the uop based on the disassembled instruction*/
 
    when(opcode === "b0110011".U){//R-type instr
     when(funct7 === "b0000000".U){ //most r-type instr
@@ -321,13 +315,19 @@ class EX extends Module {
     val rdIn      = Input(UInt(5.W))
     val rdOut     = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
+
+    // Outputs to update BTB
+    val update = Output(UInt(1.W))
+    val updatePC = Output(UInt(32.W))
+    val updateTarget = Output(UInt(32.W))
+    val mispredicted = Output(UInt(1.W))
   })
 
-  /* 
-    TODO: Perform the ALU operation based on the uopc
-  */
-    //add the comparison of branch/jump instr
-    when(io.microOP === isADDI) {
+  val branchTaken = Wire(UInt(1.W))
+  branchTaken := 0.UInt
+
+  // operations and branch evaluation
+  when(io.microOP === isADDI) {
     io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
     }.elsewhen(io.microOP === isADD) {  
       io.aluResult := (io.operandA.asSInt + io.operandB.asSInt).asUInt 
@@ -356,10 +356,30 @@ class EX extends Module {
     }.elsewhen(io.microOP === isSUB) {
       io.aluResult := io.operandA - io.operandB 
     }.elsewhen(io.microOP === isSRA) {
-      io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt 
+      io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt // whatever comes next might not be correct
+    }.elsewhen(io.microOP === isBEQ) {
+      branchTaken := io.operandA === io.operandB
+    }.elsewhen(io.microOP === isBNE) {
+      branchTaken := io.operandA =/= io.operandB
+    }.elsewhen(io.microOP === isBLT) {
+      branchTaken := io.operandA.asSInt < io.operandB.asSInt
+    }.elsewhen(io.microOP === isBGE) {
+      branchTaken := io.operandA.asSInt >= io.operandB.asSInt
     }.otherwise{
-    io.aluResult := 5.U//why 5?
-  }
+    io.aluResult := 0.U // not sure
+    }
+
+    // Branch target computation
+  val branchTarget = (io.PC.asSInt + io.imm.asSInt).asUInt
+
+  // Check of the BTB prediction
+  mispredicted = (branchTaken =/= io.predictTaken) || (branchTaken && (branchTarget =/= io.predictTarget))
+
+  //update BTB on misprediction
+  io.update := mispredicted
+  io.updatePC := io.PC
+  io.updateTarget := branchTarget
+  io.mispredicted := mispredicted
 
   io.rdOut := io.rdIn
 }
@@ -384,7 +404,6 @@ class MEM extends Module {
 
 class WB extends Module {
   val io = IO(new Bundle {
-    // What inputs and / or outputs does this pipeline stage need?
     val res = Input(UInt(32.W))
     val rd  = Input(UInt(5.W))
     val addr = Output(UInt(5.W))
@@ -392,10 +411,6 @@ class WB extends Module {
 
   })
 
-  /* 
-   * TODO: Perform the write back to the register file and set 
-   *       the check_res signal for the testbench.
-   */
   io.addr := io.rd
   io.data := io.res
 }
@@ -407,17 +422,9 @@ class WB extends Module {
 
 class IFBarrier extends Module {
   val io = IO(new Bundle {
-    // What inputs and / or outputs does this barrier need?
   })
 
-  /* 
-   * TODO: Define registers
-   *
-   * TODO: Fill registers from the inputs and write regioster values to the outputs
-   */
-
 }
-
 
 // -----------------------------------------
 // ID-Barrier: IF-ID
