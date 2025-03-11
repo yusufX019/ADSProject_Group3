@@ -22,7 +22,7 @@ class BtbEntry extends Bundle {
 
 class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
-  val LRU_counter = UInt(1.W) // if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
+  val LRU_counter = UInt(1.W) // if 0 then way 1 was least recently used, if 1 then way 2 least recenlty used
 }
 val index = io.PC
 
@@ -43,25 +43,22 @@ class BranchTargetBuffer extends Module{
     val update  = Input(UInt(1.W))
     val updatePC  = Input(UInt(32.W))
     val updateTarget  = Input(UInt(32.W))
-    val mispredicted  = Input(UInt(1.W)) //1= miss 0= good predic
+    val mispredicted  = Input(UInt(1.W)) //1= miss 0= good prediction
     val branch = Input(Bool())
 
     val valid = Output(UInt(1.W))
     val target = Output(UInt(32.W))
-    val predictTaken = Output(UInt(1.W))
+    val predictTaken = Output(UInt(1.W)) // 1= taken 0= not taken
   })
   //structure
   val btb = RegInit(VecInit(Seq.fill(8)(0.U.asTypeOf(new BtbSet()))))
 
-  /*TODO
-  cache logic to write in entry and evict and LRU
-  */
 
   //state machine
   //this is like the scheme 
   val stateBtb = State()
   //starting state
-  stateBtb := WeakNotTaken //sure?
+  stateBtb := WeakNotTaken 
 
   when(branch){ //add inside also the logic for prediction
     switch(stateBtb){
@@ -94,6 +91,58 @@ class BranchTargetBuffer extends Module{
        }
     }
   }
+  }
+  //different "when statement" to implement cache, will be merged with previous
+
+  //checking if target address is in btb
+  when(branch){
+    val currentSet = btb(io.PC(4,2)) 
+    when(currentSet(1).tag === io.PC(31,5)){ //get the 1st entry
+      when(currentSet(1).valid){
+        //predict taken
+        io.target = currentSet(1).target_address
+        //change prediction
+        currentSet.LRU_counter = 1.U
+      }
+    }.elsewhen(currentSet(2).tag === io.PC(31,5)){//get 2nd entry
+      when(currentSet(2).valid){
+        //predict taken
+         io.target = currentSet(2).target_address
+        //change prediction 
+        currentSet.LRU_counter = 0.U
+      }
+    }.otherwise{
+      //predict not taken
+      io.target = io.PC + 4.U
+    }
+  }
+
+  //writing new entry + eviction
+  when(io.update && io.mispredicted){ 
+    val currentSet := btb(io.PC(4,2))
+    when(currentSet(1).valid ==== 0.U || (currentSet.LRU_counter === 1.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
+      currentSet(1).valid = 1.U
+      currentSet(1).tag = io.updatePC(31,5)
+      currentSet(1).target_address = io.updateTarget
+      currentSet.LRU_counter = 1.U
+      //update counter
+      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
+        currentSet(1).prediction = currentSet(1).prediction - 1.U
+      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
+        currentSet(1).prediction = currentSet(1).prediction + 1.U
+      } //link it to FSM
+    }.elsewhen(currentSet(2).valid ==== 0.U || (currentSet.LRU_counter === 0.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
+      currentSet(2).valid = 1.U
+      currentSet(2).tag = io.updatePC(31,5)
+      currentSet(2).target_address = io.updateTarget
+      currentSet.LRU_counter = 0.U
+      //update counter
+      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
+        currentSet(2).prediction = currentSet(2).prediction - 1.U
+      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
+        currentSet(2).prediction = currentSet(2).prediction + 1.U
+      } //link it to FSM
+    }
   }
 
   //output connection
@@ -334,7 +383,7 @@ class EX extends Module {
     val rdIn      = Input(UInt(5.W))
     val rdOut     = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
-    val branch_offset = Output(UInt(32.W))
+    val branch_offset = Input(UInt(32.W)) 
 
     // Outputs to update BTB
     val update = Output(UInt(1.W))
@@ -643,7 +692,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   //connecting i/o of btb
   btb.io.PC := if_stage.io.PCOut
-  btb.io.branch := id_stage.io.branch
+  btb.io.branch := if_stage.io.branch
   btb.io.update := ex_stage.io.update
   btb.io.updatePC := ex_stage.io.updatePC
   btb.io.updateTarget := ex_stage.io.updateTarget
