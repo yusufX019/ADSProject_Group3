@@ -12,143 +12,109 @@ import chisel3.util.experimental.loadMemoryFromFile
 // Definition of branch target buffer
 // -----------------------------------------
 
-//bundles within the btb
+/* Bundles within the BTB */
 class BtbEntry extends Bundle {
   val valid = UInt(1.W)
   val tag = UInt(29.W)
   val target_address = UInt(32.W)
-  val prediction = UInt(2.W) // 2 bit FSM
+  val prediction = StateBranchTargetBuffer.State() // 2-bit FSM (see line 30)
 }
 
 class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
-  val LRU_counter = UInt(1.W) // if 0 then way 1 was least recently used, if 1 then way 2 least recenlty used
+  val LRU_counter = UInt(1.W) // if 0 then way 1 was most recently used, if 1 then way 1 most recenlty used
 }
-val index = io.PC
 
-//states for btb state machine
+val index = io.PC //Here??
+
+// States for the BTB State Machine
 object StateBranchTargetBuffer {
   object State extends ChiselEnum {
-    val StrongTaken, WeakTaken, StrongNotTaken, WeakNotTaken = Value
+    val StrongTaken, WeakTaken, WeakNotTaken, StrongNotTaken = Value
   }
 }
 
-//defintion of btb
+// Defintion of the BTB
 class BranchTargetBuffer extends Module{
   import StateBranchTargetBuffer.State
   import StateBranchTargetBuffer.State._
-  //definiton inputs/outputs
+  // Inputs/Outputs
   val io = IO(new Bundle {
     val PC  = Input(UInt(32.W))
     val update  = Input(UInt(1.W))
     val updatePC  = Input(UInt(32.W))
     val updateTarget  = Input(UInt(32.W))
-    val mispredicted  = Input(UInt(1.W)) //1= miss 0= good prediction
+    val mispredicted  = Input(UInt(1.W)) //1= miss 0= good predic
     val branch = Input(Bool())
 
     val valid = Output(UInt(1.W))
     val target = Output(UInt(32.W))
-    val predictTaken = Output(UInt(1.W)) // 1= taken 0= not taken
+    val predictTaken = Output(UInt(1.W))
   })
-  //structure
+  // Structure
   val btb = RegInit(VecInit(Seq.fill(8)(0.U.asTypeOf(new BtbSet()))))
 
+  // Index and Tag extraction
+  val index = io.PC(4,2)
+  val tag = io.PC(31,5)
 
-  //state machine
-  //this is like the scheme 
+  // Check if any way has a matching tag
+  val way0Match = btb(index).ways(0).valid && (btb(index).ways(0).tag === tag)
+  val way1Match = btb(index).ways(1).valid && (btb(index).ways(1).tag === tag)
+  val hit = way0Match || way1Match
+
+  // Select the correct way if there is a match
+  val waySel = Mux(way0Match, 0.U, 1.U)
+
+  // Get the predictor state
+  val predState = btb(index).ways(waySel).prediction
+  val predictedTaken = predState >= StateBranchTargetBuffer.State.WeakTaken
+  
+  /*TODO cache logic to write in entry and evict and LRU*/
+
+  /* State Machine Transition Logic (following the scheme sl.6-47) */
+  
   val stateBtb = State()
   //starting state
-  stateBtb := WeakNotTaken 
+  //stateBtb := WeakNotTaken //sure?
 
-  when(branch){ //add inside also the logic for prediction
+  when(io.branch){ //add inside also the logic for prediction
     switch(stateBtb){
-    is(StrongNotTaken){ //00
-      when(mispredicted){
-        stateBtb := WeakNotTaken
-      }.otherwise{
-        stateBtb := StrongNotTaken
+      is(State.StrongNotTaken){ //00
+        when(io.mispredicted){
+          stateBtb := State.WeakNotTaken
+        }.otherwise{
+          stateBtb := State.StrongNotTaken
+        }
       }
-    }
-    is(WeakNotTaken){//01
-      when(mispredicted){
-        stateBtb := WeakTaken
-      }.otherwise{
-        stateBtb := StrongNotTaken
+      is(State.WeakNotTaken){ //01
+        when(io.mispredicted){
+          stateBtb := State.WeakTaken
+        }.otherwise{
+          stateBtb := State.StrongNotTaken
+        }
       }
-    }
-    is(StrongTaken){ //11
-      when(mispredicted){
-        stateBtb := StrongNotTaken
-      }.otherwise{
-        stateBtb := WeakTaken
+      is(State.WeakTaken){ //10
+        when(io.mispredicted){
+          stateBtb := State.StrongTaken
+        }.otherwise{
+          stateBtb := State.WeakTaken
+        }
       }
-    }
-    is(WeakTaken){ //10
-       when(mispredicted){
-        stateBtb := StrongTaken
-       }.otherwise{
-        stateBtb :=WeakTaken
-       }
-    }
-  }
-  }
-  //different "when statement" to implement cache, will be merged with previous
-
-  //checking if target address is in btb
-  when(branch){
-    val currentSet = btb(io.PC(4,2)) 
-    when(currentSet(1).tag === io.PC(31,5)){ //get the 1st entry
-      when(currentSet(1).valid){
-        //predict taken
-        io.target = currentSet(1).target_address
-        //change prediction
-        currentSet.LRU_counter = 1.U
+      is(State.StrongTaken){ //11
+        when(io.mispredicted){
+          stateBtb := State.StrongNotTaken
+        }.otherwise{
+          stateBtb := State.WeakTaken
+        }
       }
-    }.elsewhen(currentSet(2).tag === io.PC(31,5)){//get 2nd entry
-      when(currentSet(2).valid){
-        //predict taken
-         io.target = currentSet(2).target_address
-        //change prediction 
-        currentSet.LRU_counter = 0.U
-      }
-    }.otherwise{
-      //predict not taken
-      io.target = io.PC + 4.U
     }
   }
 
-  //writing new entry + eviction
-  when(io.update && io.mispredicted){ 
-    val currentSet := btb(io.PC(4,2))
-    when(currentSet(1).valid ==== 0.U || (currentSet.LRU_counter === 1.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
-      currentSet(1).valid = 1.U
-      currentSet(1).tag = io.updatePC(31,5)
-      currentSet(1).target_address = io.updateTarget
-      currentSet.LRU_counter = 1.U
-      //update counter
-      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
-        currentSet(1).prediction = currentSet(1).prediction - 1.U
-      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
-        currentSet(1).prediction = currentSet(1).prediction + 1.U
-      } //link it to FSM
-    }.elsewhen(currentSet(2).valid ==== 0.U || (currentSet.LRU_counter === 0.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
-      currentSet(2).valid = 1.U
-      currentSet(2).tag = io.updatePC(31,5)
-      currentSet(2).target_address = io.updateTarget
-      currentSet.LRU_counter = 0.U
-      //update counter
-      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
-        currentSet(2).prediction = currentSet(2).prediction - 1.U
-      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
-        currentSet(2).prediction = currentSet(2).prediction + 1.U
-      } //link it to FSM
-    }
-  }
-
-  //output connection
-  io.valid = 0.UInt
-  io.target = 456.UInt
-  io.predictTaken = 0.UInt
+  // Output Connections
+  io.valid := hit
+  io.target := Mux(hit, btb(index).ways(waySel).target_address, 0.U)
+  io.predictTaken := Mux(hit, predictedTaken, false.B)
 }
 
 
@@ -383,7 +349,7 @@ class EX extends Module {
     val rdIn      = Input(UInt(5.W))
     val rdOut     = Output(UInt(5.W))
     val aluResult = Output(UInt(32.W))
-    val branch_offset = Input(UInt(32.W)) 
+    val branch_offset = Output(UInt(32.W))
 
     // Outputs to update BTB
     val update = Output(UInt(1.W))
@@ -446,7 +412,7 @@ class EX extends Module {
 
   //update BTB on misprediction
   io.update := mispredicted
-  io.updatePC := io.PC //?
+  io.updatePC := io.PC //might be + offset?
   io.updateTarget := branchTarget
   io.mispredicted := mispredicted
 
@@ -627,7 +593,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val regFile = Module(new regFile)
   regFile.io.write.wr_writeEnable := 0.U //disabling write enable
  
-   val btb = Module(new BranchTargetBuffer())
+  val btb = Module(new BranchTargetBuffer())
 
 
   val if_id_bar  = Module(new IDBarrier)
@@ -692,7 +658,7 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
   //connecting i/o of btb
   btb.io.PC := if_stage.io.PCOut
-  btb.io.branch := if_stage.io.branch
+  btb.io.branch := id_stage.io.branch
   btb.io.update := ex_stage.io.update
   btb.io.updatePC := ex_stage.io.updatePC
   btb.io.updateTarget := ex_stage.io.updateTarget
