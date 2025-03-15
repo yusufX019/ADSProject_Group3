@@ -69,14 +69,13 @@ class BranchTargetBuffer extends Module{
   // Get the predictor state
   val predState = btb(index).ways(waySel).prediction
   val predictedTaken = predState >= StateBranchTargetBuffer.State.WeakTaken
-  
-  /*TODO cache logic to write in entry and evict and LRU*/
+
 
   /* State Machine Transition Logic (following the scheme sl.6-47) */
   
   val stateBtb = State()
   //starting state
-  //stateBtb := WeakNotTaken //sure?
+  stateBtb := State.WeakNotTaken 
 
   when(io.branch){ //add inside also the logic for prediction
     switch(stateBtb){
@@ -108,6 +107,58 @@ class BranchTargetBuffer extends Module{
           stateBtb := State.WeakTaken
         }
       }
+    }
+  }
+  //different "when statement" to implement cache, will be merged with previous
+
+  //checking if target address is in btb
+  when(branch){
+    val currentSet = btb(io.PC(4,2)) 
+    when(currentSet(1).tag === io.PC(31,5)){ //get the 1st entry
+      when(currentSet(1).valid){
+        //predict taken
+        io.target = currentSet(1).target_address
+        //change prediction
+        currentSet.LRU_counter = 1.U
+      }
+    }.elsewhen(currentSet(2).tag === io.PC(31,5)){//get 2nd entry
+      when(currentSet(2).valid){
+        //predict taken
+         io.target = currentSet(2).target_address
+        //change prediction 
+        currentSet.LRU_counter = 0.U
+      }
+    }.otherwise{
+      //predict not taken
+      io.target = io.PC + 4.U
+    }
+  }
+
+  //writing new entry + eviction
+  when(io.update && io.mispredicted){ 
+    val currentSet := btb(io.PC(4,2))
+    when(currentSet(1).valid ==== 0.U || (currentSet.LRU_counter === 1.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
+      currentSet(1).valid = 1.U
+      currentSet(1).tag = io.updatePC(31,5)
+      currentSet(1).target_address = io.updateTarget
+      currentSet.LRU_counter = 1.U
+      //update counter
+      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
+        currentSet(1).prediction = currentSet(1).prediction - 1.U
+      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
+        currentSet(1).prediction = currentSet(1).prediction + 1.U
+      } //link it to FSM
+    }.elsewhen(currentSet(2).valid ==== 0.U || (currentSet.LRU_counter === 0.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
+      currentSet(2).valid = 1.U
+      currentSet(2).tag = io.updatePC(31,5)
+      currentSet(2).target_address = io.updateTarget
+      currentSet.LRU_counter = 0.U
+      //update counter
+      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
+        currentSet(2).prediction = currentSet(2).prediction - 1.U
+      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
+        currentSet(2).prediction = currentSet(2).prediction + 1.U
+      } //link it to FSM
     }
   }
 
