@@ -22,10 +22,8 @@ class BtbEntry extends Bundle {
 
 class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
-  val LRU_counter = UInt(1.W) // if 0 then way 1 was most recently used, if 1 then way 1 most recenlty used
+  val LRU_counter = UInt(1.W) // if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
 }
-
-val index = io.PC //Here??
 
 // States for the BTB State Machine
 object StateBranchTargetBuffer {
@@ -44,7 +42,7 @@ class BranchTargetBuffer extends Module{
     val update  = Input(UInt(1.W))
     val updatePC  = Input(UInt(32.W))
     val updateTarget  = Input(UInt(32.W))
-    val mispredicted  = Input(UInt(1.W)) //1= miss 0= good predic
+    val mispredicted  = Input(UInt(1.W)) //1= miss 0= good pred
     val branch = Input(Bool())
 
     val valid = Output(UInt(1.W))
@@ -77,7 +75,7 @@ class BranchTargetBuffer extends Module{
   //starting state
   stateBtb := State.WeakNotTaken 
 
-  when(io.branch){ //add inside also the logic for prediction
+  when(io.branch){ 
     switch(stateBtb){
       is(State.StrongNotTaken){ //00
         when(io.mispredicted){
@@ -113,18 +111,18 @@ class BranchTargetBuffer extends Module{
 
   //checking if target address is in btb
   when(branch){
-    val currentSet = btb(io.PC(4,2)) 
-    when(currentSet(1).tag === io.PC(31,5)){ //get the 1st entry
-      when(currentSet(1).valid){
+    val currentSet = btb(index) 
+    when(currentSet(0).tag === tag){ //get the 1st entry
+      when(currentSet(0).valid){
         //predict taken
-        io.target = currentSet(1).target_address
+        io.target = currentSet(0).target_address
         //change prediction
         currentSet.LRU_counter = 1.U
       }
-    }.elsewhen(currentSet(2).tag === io.PC(31,5)){//get 2nd entry
-      when(currentSet(2).valid){
+    }.elsewhen(currentSet(1).tag === tag){//get 2nd entry
+      when(currentSet(1).valid){
         //predict taken
-         io.target = currentSet(2).target_address
+         io.target = currentSet(1).target_address
         //change prediction 
         currentSet.LRU_counter = 0.U
       }
@@ -136,28 +134,28 @@ class BranchTargetBuffer extends Module{
 
   //writing new entry + eviction
   when(io.update && io.mispredicted){ 
-    val currentSet := btb(io.PC(4,2))
-    when(currentSet(1).valid ==== 0.U || (currentSet.LRU_counter === 1.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
+    val currentSet := btb(index)
+    when(currentSet(0).valid ==== 0.U || (currentSet.LRU_counter === 1.U && currentSet(0).valid ==== 1.U && currentSet(1).valid ==== 1.U)){
+      currentSet(0).valid = 1.U
+      currentSet(0).tag = io.updatePC(31,5)
+      currentSet(0).target_address = io.updateTarget
+      currentSet.LRU_counter = 1.U
+      //update counter
+      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
+        currentSet(0).prediction = currentSet(0).prediction - 1.U
+      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
+        currentSet(0).prediction = currentSet(0).prediction + 1.U
+      } //link it to FSM
+    }.elsewhen(currentSet(1).valid ==== 0.U || (currentSet.LRU_counter === 0.U && currentSet(0).valid ==== 1.U && currentSet(1).valid ==== 1.U)){
       currentSet(1).valid = 1.U
       currentSet(1).tag = io.updatePC(31,5)
       currentSet(1).target_address = io.updateTarget
-      currentSet.LRU_counter = 1.U
+      currentSet.LRU_counter = 0.U
       //update counter
       when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
         currentSet(1).prediction = currentSet(1).prediction - 1.U
       }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
         currentSet(1).prediction = currentSet(1).prediction + 1.U
-      } //link it to FSM
-    }.elsewhen(currentSet(2).valid ==== 0.U || (currentSet.LRU_counter === 0.U && currentSet(1).valid ==== 1.U && currentSet(2).valid ==== 1.U)){
-      currentSet(2).valid = 1.U
-      currentSet(2).tag = io.updatePC(31,5)
-      currentSet(2).target_address = io.updateTarget
-      currentSet.LRU_counter = 0.U
-      //update counter
-      when((io.mispredicted && io.predictTaken) || (~io.predictTaken && io.mispredicted)){
-        currentSet(2).prediction = currentSet(2).prediction - 1.U
-      }elswhen(~io.mispredicted && ~io.predictTaken || (io.predictTaken && ~io.mispredicted)){
-        currentSet(2).prediction = currentSet(2).prediction + 1.U
       } //link it to FSM
     }
   }
@@ -484,157 +482,6 @@ class MEM extends Module {
 }
 
 
-// -----------------------------------------
-// Writeback Stage
-// -----------------------------------------
-
-class WB extends Module {
-  val io = IO(new Bundle {
-    val res = Input(UInt(32.W))
-    val rd  = Input(UInt(5.W))
-    val addr = Output(UInt(5.W))
-    val data = Output(UInt(32.W))
-
-  })
-
-  io.addr := io.rd
-  io.data := io.res
-}
-
-
-// -----------------------------------------
-// IF-Barrier
-// -----------------------------------------
-
-class IFBarrier extends Module {
-  val io = IO(new Bundle {
-  })
-
-}
-
-// -----------------------------------------
-// ID-Barrier: IF-ID
-// -----------------------------------------
-
-class IDBarrier extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this barrier need?
-    val instrOut = Output(UInt(32.W))
-    val PCOut    = Output(UInt(32.W))
-    val instrIn  = Input(UInt(32.W))
-    val PCIn     = Input(UInt(32.W))
-  })
-
-  /* TODO: Define registers */
-    val instrReg = RegInit(0.U(32.W))
-    val pcReg    = RegInit(0.U(32.W))
-
-
-   /* TODO: Fill registers from the inputs and write regioster values to the outputs*/
-   instrReg    := io.instrIn
-   pcReg       := io.PCIn
-
-   io.instrOut := instrReg
-   io.PCOut    := pcReg
-
-}
-
-
-// -----------------------------------------
-// EX-Barrier: ID-EX
-// -----------------------------------------
-
-class EXBarrier extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this barrier need?
-    val operandA_in = Input(UInt(32.W))
-    val operandB_in = Input(UInt(32.W))
-    val microOP_in  = Input(uopc())
-    val imm_in      = Input(UInt(12.W))
-    val rd_in       = Input(UInt(5.W))
-    val branchOffset_in = Input(32.W)
-
-    val operandA_out = Output(UInt(32.W))
-    val operandB_out = Output(UInt(32.W))
-    val microOP_out  = Output(uopc())
-    val imm_out      = Output(UInt(12.W))
-    val rd_out       = Output(UInt(5.W))
-    val branchOffset_out = Output(32.W)
-
-  })
-
-  val operandA_reg = Reg(UInt(32.W))
-  val operandB_reg = Reg(UInt(32.W))
-  val microOP_reg  = Reg(uopc())
-  val imm_reg      = Reg(UInt(12.W))
-  val rd_reg       = Reg(UInt(5.W))
-  val branchOffset_reg = Reg(UInt(32.W))
-
-  /* TODO: Fill registers from the inputs and write regioster values to the outputs */
-
-  operandA_reg := io.operandA_in
-  operandB_reg := io.operandB_in
-  microOP_reg  := io.microOP_in
-  imm_reg      := io.imm_in
-  rd_reg       := io.rd_in
-  branchOffset_reg := io.branchOffset_in
- 
-  io.operandA_out := operandA_reg
-  io.operandB_out := operandB_reg
-  io.microOP_out  := microOP_reg 
-  io.imm_out      := imm_reg
-  io.rd_out       := rd_reg
-  io.branchOffset_out : branchOffset_reg
-}
-
-
-// -----------------------------------------
-// MEM-Barrier: EX-MEM
-// -----------------------------------------
-
-class MEMBarrier extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this barrier need?
-    val data_in  = Input(UInt(32.W))
-    val rd_in    = Input(UInt(5.W))
-    val data_out = Output(UInt(32.W))
-    val rd_out   = Output(UInt(5.W))
-  })
-
-  val data_reg = Reg(UInt(32.W))
-  val rd_reg   = Reg(UInt(5.W))
-  
-  data_reg    := io.data_in
-  rd_reg      := io.rd_in 
-  io.data_out := data_reg
-  io.rd_out   := rd_reg
-}
-
-
-// -----------------------------------------
-// WB-Barrier: MEM-WB
-// -----------------------------------------
-
-class WBBarrier extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this barrier need?
-    val data_in  = Input(UInt(32.W))
-    val addr_in  = Input(UInt(5.W))
-    val data_out = Output(UInt(32.W))
-    val addr_out = Output(UInt(5.W))
-  })
-
-  val reg_data = Reg(UInt(32.W))
-  val reg_addr = Reg(UInt(5.W))
-  
-  reg_data    := io.data_in
-  reg_addr    := io.addr_in
-  io.data_out := reg_data
-  io.addr_out    := reg_addr
-
-}
-
-
 
 class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
@@ -645,12 +492,6 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   regFile.io.write.wr_writeEnable := 0.U //disabling write enable
  
   val btb = Module(new BranchTargetBuffer())
-
-
-  val if_id_bar  = Module(new IDBarrier)
-  val id_ex_bar  = Module(new EXBarrier)
-  val ex_mem_bar = Module(new MEMBarrier)
-  val mem_wb_bar = Module(new WBBarrier)
 
 
   val if_stage  = Module(new IF(BinaryFile))
@@ -664,23 +505,11 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
    * Do not forget the global output of the core module
    */
 
-  // getting if/id barrier inputs from if stage outputs
-  if_id_bar.io.instrIn := if_stage.io.instrOut
-  if_id_bar.io.PCIn    := if_stage.io.PCOut
-
   // getting id stage inputs from if/id barrier
   id_stage.io.instrIn := if_id_bar.io.instrOut
 
   regFile.io.req.rr_rs1 := id_stage.io.operandA_out
   regFile.io.req.rr_rs2 := id_stage.io.operandB_out
-
-  // getting id/ex barrier inputs from id stage outputs
-  id_ex_bar.io.operandA_in := regFile.io.resp.rp_d1
-  id_ex_bar.io.operandB_in := regFile.io.resp.rp_d2
-  id_ex_bar.io.microOP_in  := id_stage.io.microOP
-  id_ex_bar.io.imm_in      := id_stage.io.imm
-  id_ex_bar.io.rd_in       := id_stage.io.rdOUt
-  id_ex_bar.io.branchOffset_in := id_stage.io.branch_offset
 
   // getting ex stage inputs from id/ex barrier outputs
   ex_stage.io.operandA   := id_ex_bar.io.operandA_out
@@ -690,14 +519,6 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   ex_stage.io.rdIn       := id_ex_bar.io.rd_out
   ex_stage.io.branch_offset := id_ex_bar.io.branchOffset_out
 
-  // getting ex/mem barrier inputs from ex stage outputs
-  ex_mem_bar.io.data_in := ex_stage.io.aluResult
-  ex_mem_bar.io.rd_in := id_ex_bar.io.rd_out
-
-  // getting mem/wb inputs from ex/mem barrier outputs, thus
-  // we skipped mem stage
-  mem_wb_bar.io.data_in := ex_mem_bar.io.data_out
-  mem_wb_bar.io.addr_in := ex_mem_bar.io.rd_out
 
   // getting wb stage inputs from mem/wb barrier output
   wb_stage.io.res := mem_wb_bar.io.data_out
