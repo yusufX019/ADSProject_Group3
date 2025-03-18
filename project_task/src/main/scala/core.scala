@@ -167,64 +167,6 @@ class BranchTargetBuffer extends Module{
 }
 
 
-//val PC = RegInit(0.U(32.W))
-//val IMem = Mem(4096, UInt(32.W))
-
-// -----------------------------------------
-// Register File
-// -----------------------------------------
-
-class regFileReadReq extends Bundle {
-    // what signals does a read request need?
-    val rr_rs1 = Input(UInt(5.W))    
-    val rr_rs2 = Input(UInt(5.W))  
-}
-
-class regFileReadResp extends Bundle {
-    // what signals does a read response need?
-    val rp_d1 = Output(UInt(32.W))    
-    val rp_d2 = Output(UInt(32.W))    
-}
-
-class regFileWriteReq extends Bundle {
-    // what signals does a write request need?
-    val wr_rd = Input(UInt(5.W))  
-    val wr_d  = Input(UInt(32.W))  
-    val wr_writeEnable = Input(Bool())
-}
-
-class regFile extends Module {
-  val io = IO(new Bundle {
-    val req  = new regFileReadReq
-    val resp = new regFileReadResp
-    val write = new regFileWriteReq
-    // how many read and write ports do you need to handle all requests
-    // from the pipeline to the register file simultaneously?
-        // 2 ports for reading and 1 for writing
-})
-
-
-  val regFile = Mem(32, UInt(32.W))
-  regFile.write(0.U,0.U)
-
-  when(io.req.rr_rs1 === 0.U){
-    io.resp.rp_d1 := 0.U
-  }.otherwise{
-    io.resp.rp_d1 := regFile(io.req.rr_rs1)
-  }
-  
-   when(io.req.rr_rs2 === 0.U){
-    io.resp.rp_d2 := 0.U
-  }.otherwise{
-    io.resp.rp_d2 := regFile(io.req.rr_rs2)
-  }
-
-  when (io.write.wr_writeEnable && io.write.wr_rd =/= 0.U){
-    regFile(io.write.wr_rd) := io.write.wr_d
-  }
-
-}
-
 class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     val check_res = Output(UInt(32.W))
@@ -235,35 +177,6 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
  
   val btb = Module(new BranchTargetBuffer())
 
-
-  /* 
-   * TODO: Connect all IOs between the stages, barriers and register file.
-   * Do not forget the global output of the core module
-   */
-
-
-  regFile.io.req.rr_rs1 := id_stage.io.operandA_out
-  regFile.io.req.rr_rs2 := id_stage.io.operandB_out
-
-  // getting ex stage inputs from id/ex barrier outputs
-  ex_stage.io.operandA   := id_ex_bar.io.operandA_out
-  ex_stage.io.operandB   := id_ex_bar.io.operandB_out
-  ex_stage.io.microOP    := id_ex_bar.io.microOP_out
-  ex_stage.io.imm        := id_ex_bar.io.imm_out
-  ex_stage.io.rdIn       := id_ex_bar.io.rd_out
-  ex_stage.io.branch_offset := id_ex_bar.io.branchOffset_out
-
-  regFile.io.write.wr_writeEnable := 1.U        // enabling writing
-  regFile.io.write.wr_rd := wb_stage.io.addr
-  regFile.io.write.wr_d  := wb_stage.io.data
-
-  //connecting i/o of btb
-  btb.io.PC := if_stage.io.PCOut
-  btb.io.branch := id_stage.io.branch
-  btb.io.update := ex_stage.io.update
-  btb.io.updatePC := ex_stage.io.updatePC
-  btb.io.updateTarget := ex_stage.io.updateTarget
-  btb.io.mispredicted := ex_stage.io.mispredicted
 
   io.check_res := wb_stage.io.data
 }
