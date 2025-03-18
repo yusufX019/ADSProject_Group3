@@ -167,37 +167,6 @@ class BranchTargetBuffer extends Module{
 }
 
 
-// -----------------------------------------
-// Global Definitions and Data Types
-// -----------------------------------------
-
-object uopc extends ChiselEnum {
-
-  val isADD   = Value(0x01.U)
-  val isSUB   = Value(0x02.U)
-  val isXOR   = Value(0x03.U)
-  val isOR    = Value(0x04.U)
-  val isAND   = Value(0x05.U)
-  val isSLL   = Value(0x06.U)
-  val isSRL   = Value(0x07.U)
-  val isSRA   = Value(0x08.U)
-  val isSLT   = Value(0x09.U)
-  val isSLTU  = Value(0x0A.U)
-
-  val isADDI  = Value(0x10.U)
-
-  val isJAL  = Value(0x11.U)
-  val isJALR = Value(0x12.U)
-  val isBEQ  = Value(0x13.U)
-  val isBNE  = Value(0x14.U)
-  val isBLT  = Value(0x15.U)
-  val isBGE  = Value(0x16.U)
-
-  val invalid = Value(0xFF.U)
-}
-
-import uopc._
-
 //val PC = RegInit(0.U(32.W))
 //val IMem = Mem(4096, UInt(32.W))
 
@@ -256,233 +225,6 @@ class regFile extends Module {
 
 }
 
-// -----------------------------------------
-// Fetch Stage
-// -----------------------------------------
-
-class IF (BinaryFile: String, BTB: BTB) extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this pipeline stage need?
-    val instrOut = Output(UInt(32.W))
-    val PCOut = Output(UInt(32.W))
-    val valid = Input(UInt(1.W))
-    val target = Input(UInt(32.W))
-    val predictTaken = Input(UInt(1.W))
-    val branch = Output(Bool())
-  })
-
-  val IMem = Mem(4096, UInt(32.W))
-  loadMemoryFromFile(IMem, BinaryFile)
-
-  // In this Project, we consider branches and jumps, differently from previous tasks
-  val PC = RegInit(0.U(32.W))
-
-  val instr = IMem(PC >> 2) //suspicious
-  //testing if it's a branch/jump or not
-  val opcode := instr(6,0)
-  when(opcode === "b1100011"){
-    branch = true.B
-  }
-
-  // PC update (using the BTB)
-  when (io.valid && io.predictTaken) {
-    PC := io.target // we use the predicted target if the branch is taken
-  } .otherwise {
-    PC := PC + 4.U // as seen in the previous tasks: default
-  }
-
-  io.PCOut := PC
-  io.instrOut := instr
-}
-
-// -----------------------------------------
-// Decode Stage
-// -----------------------------------------
-
-class ID extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this pipeline stage need?
-    val instrIn = Input(UInt(32.W))
-    val microOP = Output(uopc())
-    val rdOUt = Output(UInt(5.W))
-    val imm = Output(UInt(12.W))
-    val operandA_out = Output(UInt(32.W))
-    val operandB_out = Output(UInt(32.W))
-    val branch_offset = Output(UInt(32.W))
-  })
-
-  val opcode = io.instrIn(6, 0)
-  val rd = io.instrIn(11,7)
-  val funct3 = io.instrIn(14,12)
-  val rs1 = io.instrIn(19,15)
-  val rs2 = io.instrIn(24,20)
-  val funct7 = io.instrIn(31,25)
-  val imm_value = io.instrIn(31,20)
-  //for the offset 
-  val imm_11= io.instrIn(7) 
-  val imm_4_1 = io.instrIn(8,11)
-  val imm_10_5 = io.instrIn(25,30)
-  val imm_12= io.instrIn(31)
-
-  /* Determine the uop based on the disassembled instruction*/
-
-   when(opcode === "b0110011".U){//R-type instr
-    when(funct7 === "b0000000".U){ //most r-type instr
-     when(funct3 === "b000"){
-      io.microOP := uopc.isADD
-     }.elsewhen(funct3 === "b011"){
-      io.microOP := uopc.isSLTU
-     }.elsewhen(funct3 === "b111"){
-      io.microOP := uopc.isAND
-     }.elsewhen(funct3 === "b110"){
-      io.microOP := uopc.isOR
-     }.elsewhen(funct3 === "b100"){
-      io.microOP := uopc.isXOR
-     }.elsewhen(funct3 === "b001"){
-      io.microOP := uopc.isSLL
-     }.elsewhen(funct3 === "b101"){
-      io.microOP := uopc.isSRL
-     }
-    }.elsewhen(funct7 === "b0100000".U){ //for sub and sra
-    when(funct3 === "b000"){
-      io.microOP := uopc.isSUB
-     }.elsewhen(funct3 === "b101"){
-      io.microOP := uopc.isSRA
-     }
-    }
-   }.elsewhen(opcode === "b0010011".U){ //I-type
-      when(funct3 === "b000".U){ //add imm
-        io.microOP := uopc.isADDI
-      }
-   }.elsewhen(opcode === "b1101111".U){ //jump 
-      io.microOP := uopc.isJAL
-   }.elsewhen(opcode === "b1100111".U){ //jr
-      when(funct3 === "b000".U){
-        io.microOP := uopc.isJALR
-      }
-   }.elsewhen(opcode === "b1100011".U){ //branch
-      when(funct3 === "b000"){
-      io.microOP := uopc.isBEQ
-     }.elsewhen(funct3 === "b001"){
-      io.microOP := uopc.isBNE
-     }.elsewhen(funct3 === "b100"){
-      io.microOP := uopc.isBLT
-     }.elsewhen(funct3 === "b101"){
-      io.microOP := uopc.isBGE
-     }
-   }otherwise{
-    io.microOP := uopc.invalid
-   }
-
-
-  io.operandA_out := rs1
-  io.operandB_out := rs2
-  io.imm := imm_value
-  io.rdOUt := rd
-  //concatenation + sign extension
-  io.branch_offset = Cat(Fill(20, io.imm12), Cat(imm_12, imm_11,imm_10_5,imm_4_1))
-  
-}
-
-// -----------------------------------------
-// Execute Stage
-// -----------------------------------------
-
-class EX extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this pipeline stage need?
-    val operandA  = Input(UInt(32.W))
-    val operandB  = Input(UInt(32.W))
-    val microOP   = Input(uopc())
-    val imm       = Input(UInt(12.W))
-    val rdIn      = Input(UInt(5.W))
-    val rdOut     = Output(UInt(5.W))
-    val aluResult = Output(UInt(32.W))
-    val branch_offset = Output(UInt(32.W))
-
-    // Outputs to update BTB
-    val update = Output(UInt(1.W))
-    val updatePC = Output(UInt(32.W))
-    val updateTarget = Output(UInt(32.W))
-    val mispredicted = Output(UInt(1.W))
-  })
-
-  val branchTaken = Wire(UInt(1.W))
-  branchTaken := 0.UInt
-
-  // operations and branch evaluation
-  when(io.microOP === isADDI) {
-    io.aluResult := (io.imm.asSInt + io.operandA.asSInt).asUInt
-    }.elsewhen(io.microOP === isADD) {  
-      io.aluResult := (io.operandA.asSInt + io.operandB.asSInt).asUInt 
-    }.elsewhen(io.microOP === isSLT) {
-      when(io.operandA.asSInt < io.operandB.asSInt){
-          io.aluResult := 1.U
-      }.otherwise{
-          io.aluResult := 0.U
-      }
-    }.elsewhen(io.microOP === isSLTU) {
-      when(io.operandA < io.operandB){
-          io.aluResult := 1.U
-      }.otherwise{
-          io.aluResult := 0.U
-      }
-    }.elsewhen(io.microOP === isAND) {
-      io.aluResult := io.operandA & io.operandB
-    }.elsewhen(io.microOP === isOR) {
-      io.aluResult := io.operandA | io.operandB 
-    }.elsewhen(io.microOP === isXOR) {
-      io.aluResult := io.operandA ^ io.operandB 
-    }.elsewhen(io.microOP === isSLL) {
-      io.aluResult := io.operandA << io.operandB(4,0)
-    }.elsewhen(io.microOP === isSRL) {
-      io.aluResult := io.operandA >> io.operandB 
-    }.elsewhen(io.microOP === isSUB) {
-      io.aluResult := io.operandA - io.operandB 
-    }.elsewhen(io.microOP === isSRA) {
-      io.aluResult := (io.operandA.asSInt >> io.operandB.asUInt).asUInt // whatever comes next might not be correct
-    }.elsewhen(io.microOP === isBEQ) {
-      branchTaken := io.operandA === io.operandB
-    }.elsewhen(io.microOP === isBNE) {
-      branchTaken := io.operandA =/= io.operandB
-    }.elsewhen(io.microOP === isBLT) {
-      branchTaken := io.operandA.asSInt < io.operandB.asSInt
-    }.elsewhen(io.microOP === isBGE) {
-      branchTaken := io.operandA.asSInt >= io.operandB.asSInt
-    }.otherwise{
-    io.aluResult := 0.U // not sure
-    }
-
-    // Branch target computation
-  val branchTarget = (io.PC.asSInt + io.branch_offset.asSInt).asUInt
-
-  // Check of the BTB prediction
-  mispredicted = (branchTaken =/= io.predictTaken) || (branchTaken && (branchTarget =/= io.predictTarget))
-
-  //update BTB on misprediction
-  io.update := mispredicted
-  io.updatePC := io.PC //might be + offset?
-  io.updateTarget := branchTarget
-  io.mispredicted := mispredicted
-
-  io.rdOut := io.rdIn
-}
-
-// -----------------------------------------
-// Memory Stage
-// -----------------------------------------
-
-class MEM extends Module {
-  val io = IO(new Bundle {
-    // What inputs and / or outputs does this pipeline stage need?
-  })
-
-  // No memory operations implemented in this basic CPU
-
-}
-
-
-
 class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val io = IO(new Bundle {
     val check_res = Output(UInt(32.W))
@@ -494,19 +236,11 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   val btb = Module(new BranchTargetBuffer())
 
 
-  val if_stage  = Module(new IF(BinaryFile))
-  val id_stage  = Module(new ID)
-  val ex_stage  = Module(new EX)
-  val mem_stage = Module(new MEM)
-  val wb_stage  = Module(new WB)
-
   /* 
    * TODO: Connect all IOs between the stages, barriers and register file.
    * Do not forget the global output of the core module
    */
 
-  // getting id stage inputs from if/id barrier
-  id_stage.io.instrIn := if_id_bar.io.instrOut
 
   regFile.io.req.rr_rs1 := id_stage.io.operandA_out
   regFile.io.req.rr_rs2 := id_stage.io.operandB_out
@@ -518,11 +252,6 @@ class PipelinedRV32Icore (BinaryFile: String) extends Module {
   ex_stage.io.imm        := id_ex_bar.io.imm_out
   ex_stage.io.rdIn       := id_ex_bar.io.rd_out
   ex_stage.io.branch_offset := id_ex_bar.io.branchOffset_out
-
-
-  // getting wb stage inputs from mem/wb barrier output
-  wb_stage.io.res := mem_wb_bar.io.data_out
-  wb_stage.io.rd  := mem_wb_bar.io.addr_out
 
   regFile.io.write.wr_writeEnable := 1.U        // enabling writing
   regFile.io.write.wr_rd := wb_stage.io.addr
