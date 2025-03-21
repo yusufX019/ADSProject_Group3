@@ -13,13 +13,6 @@ import core_tile._
 
 class PipelinedRV32I (BinaryFile: String) extends Module {
 
-  val io = IO(new Bundle {
-    val result    = Output(UInt(32.W)) 
-    })
   
-  val core = Module(new PipelinedRV32Icore(BinaryFile))
-
-  io.result       := core.io.check_res
-
 }
 
