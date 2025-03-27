@@ -14,5 +14,5 @@ import PipelinedRV32I._
 
 
 object Verilog_Gen extends App {
-  emitVerilog(new PipelinedRV32I("src/test/programs/BinaryFile"), Array("--target-dir", "generated-src"))
+  emitVerilog(new PipelinedRV32I, Array("--target-dir", "generated-src"))
 }
