@@ -14,7 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
 
 "PipelinedRV32I_Tester" should "work" in {
-    test(new PipelinedRV32I("src/test/programs/BinaryFile")).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
+    test(new PipelinedRV32I).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
 
         /* 
          * TODO: Insert your testcases from the previous assignments and adapt them for the pipelined core
