@@ -4,17 +4,17 @@
 // Chair of Electronic Design Automation, RPTU in Kaiserslautern
 // File created on 12/19/2023 by Tobias Jauch (@tojauch)
 
-package PipelinedRV32I_Tester
+package BTB_Tester
 
 import chisel3._
 import chiseltest._
 import core_tile._
 import org.scalatest.flatspec.AnyFlatSpec
 
-class PipelinedRISCV32ITest extends AnyFlatSpec with ChiselScalatestTester {
+class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
 
 
-"BranchTargetBuffer_Tester" should "work" in {
+"BTB_Tester" should "work" in {
     test(new BranchTargetBuffer).withAnnotations(Seq(WriteVcdAnnotation)) { dut =>
 
       /*dut.io.a.poke(...)
