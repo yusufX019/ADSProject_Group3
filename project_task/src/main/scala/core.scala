@@ -27,7 +27,7 @@ class BtbSet extends Bundle {
 }
 
 // States for the BTB State Machine
-object StateBranchTargetBuffer {
+object StateBranchTargetBuffer extends ChiselEnum {
   object State extends ChiselEnum {
     val StrongTaken, WeakTaken, WeakNotTaken, StrongNotTaken = Value
   }
@@ -97,9 +97,10 @@ class BranchTargetBuffer extends Module{
  
   /* State Machine Transition Logic (following the scheme sl.6-47) */
   
-  val stateBtb = State()
+  val stateBtb = RegInit(State.WeakNotTaken)
   //starting state
-  stateBtb := State.WeakNotTaken 
+  //stateBtb := State.WeakNotTaken
+  
 
     switch(stateBtb){
       is(State.StrongNotTaken){ //00
@@ -168,11 +169,5 @@ class BranchTargetBuffer extends Module{
   io.valid := hit
   io.target := Mux((hit).asBool, btb(index).ways(waySel).target_address, 0.U)
   io.predictTaken := Mux((hit).asBool, predictedTaken, false.B)
-}
-
-
-class PipelinedRV32Icore extends Module {
-
-  val btb = Module(new BranchTargetBuffer())
 }
 

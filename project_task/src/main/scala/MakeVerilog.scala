@@ -10,9 +10,10 @@ import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
-import PipelinedRV32I._
+//import PipelinedRV32I._
+import core_tile._
 
 
 object Verilog_Gen extends App {
-  emitVerilog(new PipelinedRV32I, Array("--target-dir", "generated-src"))
+  emitVerilog(new BranchTargetBuffer, Array("--target-dir", "generated-src"))
 }
