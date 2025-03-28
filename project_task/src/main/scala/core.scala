@@ -173,6 +173,6 @@ class BranchTargetBuffer extends Module{
 
 class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
-  val btb = Module(new BranchTargetBuffer())
+ 0 val btb = Module(new BranchTargetBuffer())
 }
 
