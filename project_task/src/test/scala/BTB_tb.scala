@@ -96,7 +96,8 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     dut.clock.step()
     dut.io.valid.expect(1.U) // Should fail if evicted due to LRU
 
-    // --- Simulate misprediction and state transition ---
+
+/*    // --- Simulate misprediction and state transition ---
     val mispredictPC = 0x00000010.U
     dut.io.PC.poke(mispredictPC)
     dut.io.mispredicted.poke(1.U)
@@ -104,24 +105,57 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
 
     // Check if state transitioned (Strong Taken → Weak Taken)
     dut.io.predictTaken.expect(true.B) // If FSM transitioned correctly
-
-/*
-    // --- Insert and check a boundary case (last index) ---
-    val boundaryPC = 0xFFFFF010.U  // Edge case: near max address
-    val boundaryTarget = 0xFFFFF080.U
-
-    dut.io.update.poke(1.U)
-    dut.io.updatePC.poke(boundaryPC)
-    dut.io.updateTarget.poke(boundaryTarget)
-    dut.clock.step()
-
-    // Verify last entry
-    dut.io.PC.poke(boundaryPC)
-    dut.clock.step()
-    dut.io.valid.expect(1.U)
-    dut.io.target.expect(boundaryTarget)
 */
 
+    val mispredictPC = 0x00000010.U
+    dut.io.PC.poke(mispredictPC)
+    
+    // Ensure FSM starts in WeakNotTaken (01)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    
+    println(s"Initial predictTaken: ${dut.io.predictTaken.peek().litValue}") // Debug print
+    
+    // 1. WeakNotTaken (01) → WeakTaken (11)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    dut.io.predictTaken.expect(true.B) // Now taken
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakNotTaken)
+
+    // 2. WeakTaken (11) → StrongNotTaken (00)
+    dut.io.mispredicted.poke(0.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
+    
+    // 3. StrongNotTaken (00) → WeakNotTaken (01)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakNotTaken)
+
+
+    // 6. WeakNotTaken (01) → WeakTaken (11)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakTaken)
+    
+    // 7. WeakTaken (11) → StrongTaken (10)
+    dut.io.mispredicted.poke(0.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongTaken)
+    
+    // 8. StrongTaken (10) → WeakTaken (11)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakTaken)
+    
+    // 9. WeakTaken (11) → StrongNotTaken (00)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
+
+
+
+    
     }
   }
 }

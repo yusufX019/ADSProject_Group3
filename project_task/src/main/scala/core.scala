@@ -48,6 +48,7 @@ class BranchTargetBuffer extends Module{
     val valid = Output(UInt(1.W))
     val target = Output(UInt(32.W))
     val predictTaken = Output(UInt(1.W))
+    val fsm_state = Output(State())
   })
   // Structure
   val btb = RegInit(VecInit(Seq.fill(8)(0.U.asTypeOf(new BtbSet()))))
@@ -111,21 +112,21 @@ class BranchTargetBuffer extends Module{
         }
       }
       is(State.WeakNotTaken){ //01
-        when(io.mispredicted=== 1.U){
+        when(io.mispredicted === 1.U){
           stateBtb := State.WeakTaken
         }.otherwise{
           stateBtb := State.StrongNotTaken
         }
       }
       is(State.StrongTaken){ //10
-        when(io.mispredicted=== 1.U){
+        when(io.mispredicted === 1.U){
           stateBtb := State.WeakTaken
         }.otherwise{
           stateBtb := State.StrongTaken
         }
       }
       is(State.WeakTaken){ //11
-        when(io.mispredicted=== 1.U){
+        when(io.mispredicted === 1.U){
           stateBtb := State.StrongNotTaken
         }.otherwise{
           stateBtb := State.StrongTaken
@@ -169,5 +170,7 @@ class BranchTargetBuffer extends Module{
   io.valid := hit
   io.target := Mux((hit).asBool, btb(index).ways(waySel).target_address, 0.U)
   io.predictTaken := Mux((hit).asBool, predictedTaken, false.B)
+  io.fsm_state := stateBtb
+
 }
 
