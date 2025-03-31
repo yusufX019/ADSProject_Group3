@@ -76,7 +76,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
 
     dut.clock.step()
 
-      dut.io.PC.poke(conflictPC)
+    dut.io.PC.poke(conflictPC)
     dut.clock.step()
     dut.io.valid.expect(1.U)
     dut.io.target.expect(conflictTarget)
@@ -101,13 +101,13 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
      // Test whether oldest entry was evicted
     dut.io.PC.poke(conflictPC)
     dut.clock.step()
-    dut.io.valid.expect(1.U) // Should fail if evicted due to LRU
+    dut.io.valid.expect(1.U) 
 
 
     // Test whether oldest entry was evicted
     dut.io.PC.poke(testPC)
     dut.clock.step()
-    dut.io.valid.expect(0.U) // Should fail if evicted due to LRU
+    dut.io.valid.expect(0.U) 
 
 
 /*    // --- Simulate misprediction and state transition ---

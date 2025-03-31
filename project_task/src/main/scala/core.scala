@@ -23,7 +23,7 @@ class BtbEntry extends Bundle {
 
 class BtbSet extends Bundle {
   val ways = Vec(2, new BtbEntry())
-  val LRU_counter = UInt(1.W) // if 0 then way 0 was most recently used, if 1 then way 1 most recenlty used
+  val LRU_counter = UInt(1.W) // if 1 then way 0 was most recently used, if 0 then way 1 most recenlty used
 }
 
 // States for the BTB State Machine
@@ -136,12 +136,11 @@ class BranchTargetBuffer extends Module{
 
 
   //writing new entry + eviction
-
-
   val SetFullAndLRU1 = (currentSet.LRU_counter === 1.U) & (currentSet.ways(0).valid === 1.U) & (currentSet.ways(1).valid === 1.U)
+  val noMatch = ~way0Match & ~way1Match
 
   when((io.update & io.mispredicted) === 1.U){ 
-    when(way0Match === 1.U){
+    when((noMatch & currentSet.LRU_counter === 0.U) === 1.U | currentSet.ways(0).valid === 0.U){
       currentSet.ways(0).valid := 1.U
       currentSet.ways(0).tag := io.updatePC(31,5)
       currentSet.ways(0).target_address := io.updateTarget
@@ -152,7 +151,7 @@ class BranchTargetBuffer extends Module{
       }.elsewhen((~io.mispredicted & ~io.predictTaken | (io.predictTaken & ~io.mispredicted)) === 1.U){
         currentSet.ways(0).prediction := currentSet.ways(0).prediction + 1.U
       }
-    }.elsewhen(way1Match === 1.U){
+    }.elsewhen((noMatch & currentSet.LRU_counter === 1.U) === 1.U | currentSet.ways(1).valid === 0.U){
       currentSet.ways(1).valid := 1.U
       currentSet.ways(1).tag := io.updatePC(31,5)
       currentSet.ways(1).target_address := io.updateTarget
