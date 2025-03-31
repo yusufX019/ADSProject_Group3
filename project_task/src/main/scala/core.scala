@@ -79,14 +79,14 @@ class BranchTargetBuffer extends Module{
         //predict taken
         io.target := currentSet.ways(0).target_address
         //change prediction
-        currentSet.LRU_counter := 1.U
+        currentSet.LRU_counter := 0.U
       }
     }.elsewhen(currentSet.ways(1).tag === tag){//get 2nd entry
       when(currentSet.ways(1).valid === 1.U){
         //predict taken
          io.target := currentSet.ways(1).target_address
         //change prediction 
-        currentSet.LRU_counter := 0.U
+        currentSet.LRU_counter := 1.U
       }
     }.otherwise{
       //predict not taken
@@ -113,7 +113,7 @@ class BranchTargetBuffer extends Module{
       }
       is(State.WeakNotTaken){ //01
         when(io.mispredicted === 1.U){
-          stateBtb := State.WeakTaken
+          stateBtb := State.StrongTaken
         }.otherwise{
           stateBtb := State.StrongNotTaken
         }
