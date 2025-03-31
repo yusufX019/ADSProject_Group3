@@ -172,5 +172,9 @@ class BranchTargetBuffer extends Module{
   io.predictTaken := Mux((hit).asBool, predictedTaken, false.B)
   io.fsm_state := stateBtb
 
+<<<<<<< HEAD
+=======
+ 0 val btb = Module(new BranchTargetBuffer())
+>>>>>>> 00465ab6a309ba7d6f7e88080bc72d980433b5c9
 }
 

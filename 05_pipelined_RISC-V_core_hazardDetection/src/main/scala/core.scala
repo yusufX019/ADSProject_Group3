@@ -206,7 +206,7 @@ class ForwardingUnit extends Module {
      Forwarding Selection:
      Select the appropriate value to forward from one stage to another based on the hazard checks.
   */
- /* //hazards on rs1
+  //hazards on rs1
   when( io.forward_a === 1.U){
     io.operand_a := io.exme_bar_result
   }.elsewhen(io.forward_a === 2.U){
