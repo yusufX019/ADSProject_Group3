@@ -145,7 +145,7 @@ class BranchTargetBuffer extends Module{
       currentSet.ways(0).valid := 1.U
       currentSet.ways(0).tag := io.updatePC(31,5)
       currentSet.ways(0).target_address := io.updateTarget
-      currentSet.LRU_counter := 1.U
+      currentSet.LRU_counter := 0.U
       //update counter
       when(((io.mispredicted & io.predictTaken) | (~io.predictTaken & io.mispredicted)) === 1.U){
         currentSet.ways(0).prediction := currentSet.ways(0).prediction - 1.U
@@ -156,7 +156,7 @@ class BranchTargetBuffer extends Module{
       currentSet.ways(1).valid := 1.U
       currentSet.ways(1).tag := io.updatePC(31,5)
       currentSet.ways(1).target_address := io.updateTarget
-      currentSet.LRU_counter := 0.U
+      currentSet.LRU_counter := 1.U
       //update counter
       when(((io.mispredicted & io.predictTaken) | (~io.predictTaken & io.mispredicted)) === 1.U){
         currentSet.ways(1).prediction := currentSet.ways(1).prediction - 1.U

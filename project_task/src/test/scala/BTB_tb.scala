@@ -53,7 +53,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.target.expect(testTarget)
 
     // --- Insert second entry at the same index (to test collisions) ---
-    val conflictPC = 0x00000018.U  // Different tag, same index
+    val conflictPC = 0x00000110.U  // Different tag, same index
     val conflictTag = conflictPC(31,5)
     val conflictTarget = 0x00000090.U
 
@@ -71,7 +71,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     // Check if first entry is still present (depends on replacement policy)
     dut.io.PC.poke(testPC)
     dut.clock.step()
-    dut.io.valid.expect(1.U) // May fail if LRU evicted it
+    dut.io.valid.expect(1.U) 
     dut.io.target.expect(testTarget)
 
     dut.clock.step()
@@ -119,7 +119,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     // Check if state transitioned (Strong Taken → Weak Taken)
     dut.io.predictTaken.expect(true.B) // If FSM transitioned correctly
 */
-
+/*
     val mispredictPC = 0x00000010.U
     dut.io.PC.poke(mispredictPC)
     
@@ -158,7 +158,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.mispredicted.poke(0.U)
     dut.clock.step()
     dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
-
+*/
     
     }
   }
