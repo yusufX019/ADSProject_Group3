@@ -27,7 +27,7 @@ class BtbSet extends Bundle {
 }
 
 // States for the BTB State Machine
-object StateBranchTargetBuffer {
+object StateBranchTargetBuffer extends ChiselEnum {
   object State extends ChiselEnum {
     val StrongTaken, WeakTaken, WeakNotTaken, StrongNotTaken = Value
   }
@@ -48,6 +48,7 @@ class BranchTargetBuffer extends Module{
     val valid = Output(UInt(1.W))
     val target = Output(UInt(32.W))
     val predictTaken = Output(UInt(1.W))
+    val fsm_state = Output(State())
   })
   // Structure
   val btb = RegInit(VecInit(Seq.fill(8)(0.U.asTypeOf(new BtbSet()))))
@@ -78,14 +79,14 @@ class BranchTargetBuffer extends Module{
         //predict taken
         io.target := currentSet.ways(0).target_address
         //change prediction
-        currentSet.LRU_counter := 1.U
+        currentSet.LRU_counter := 0.U
       }
     }.elsewhen(currentSet.ways(1).tag === tag){//get 2nd entry
       when(currentSet.ways(1).valid === 1.U){
         //predict taken
          io.target := currentSet.ways(1).target_address
         //change prediction 
-        currentSet.LRU_counter := 0.U
+        currentSet.LRU_counter := 1.U
       }
     }.otherwise{
       //predict not taken
@@ -97,9 +98,10 @@ class BranchTargetBuffer extends Module{
  
   /* State Machine Transition Logic (following the scheme sl.6-47) */
   
-  val stateBtb = State()
+  val stateBtb = RegInit(State.WeakNotTaken)
   //starting state
-  stateBtb := State.WeakNotTaken 
+  //stateBtb := State.WeakNotTaken
+  
 
     switch(stateBtb){
       is(State.StrongNotTaken){ //00
@@ -110,21 +112,21 @@ class BranchTargetBuffer extends Module{
         }
       }
       is(State.WeakNotTaken){ //01
-        when(io.mispredicted=== 1.U){
-          stateBtb := State.WeakTaken
+        when(io.mispredicted === 1.U){
+          stateBtb := State.StrongTaken
         }.otherwise{
           stateBtb := State.StrongNotTaken
         }
       }
       is(State.StrongTaken){ //10
-        when(io.mispredicted=== 1.U){
+        when(io.mispredicted === 1.U){
           stateBtb := State.WeakTaken
         }.otherwise{
           stateBtb := State.StrongTaken
         }
       }
       is(State.WeakTaken){ //11
-        when(io.mispredicted=== 1.U){
+        when(io.mispredicted === 1.U){
           stateBtb := State.StrongNotTaken
         }.otherwise{
           stateBtb := State.StrongTaken
@@ -143,7 +145,7 @@ class BranchTargetBuffer extends Module{
       currentSet.ways(0).valid := 1.U
       currentSet.ways(0).tag := io.updatePC(31,5)
       currentSet.ways(0).target_address := io.updateTarget
-      currentSet.LRU_counter := 1.U
+      currentSet.LRU_counter := 0.U
       //update counter
       when(((io.mispredicted & io.predictTaken) | (~io.predictTaken & io.mispredicted)) === 1.U){
         currentSet.ways(0).prediction := currentSet.ways(0).prediction - 1.U
@@ -154,7 +156,7 @@ class BranchTargetBuffer extends Module{
       currentSet.ways(1).valid := 1.U
       currentSet.ways(1).tag := io.updatePC(31,5)
       currentSet.ways(1).target_address := io.updateTarget
-      currentSet.LRU_counter := 0.U
+      currentSet.LRU_counter := 1.U
       //update counter
       when(((io.mispredicted & io.predictTaken) | (~io.predictTaken & io.mispredicted)) === 1.U){
         currentSet.ways(1).prediction := currentSet.ways(1).prediction - 1.U
@@ -168,11 +170,16 @@ class BranchTargetBuffer extends Module{
   io.valid := hit
   io.target := Mux((hit).asBool, btb(index).ways(waySel).target_address, 0.U)
   io.predictTaken := Mux((hit).asBool, predictedTaken, false.B)
+<<<<<<< HEAD
 }
 
 
 class PipelinedRV32Icore (BinaryFile: String) extends Module {
 
  0 val btb = Module(new BranchTargetBuffer())
+=======
+  io.fsm_state := stateBtb
+
+>>>>>>> main
 }
 

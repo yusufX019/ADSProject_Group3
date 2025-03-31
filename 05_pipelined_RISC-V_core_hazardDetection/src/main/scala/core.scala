@@ -103,6 +103,28 @@ class ForwardingUnit extends Module {
     //input to check for hazards
     val idex_bar_rs1 = Input(UInt(5.W))
     val idex_bar_rs2 = Input(UInt(5.W))
+<<<<<<< HEAD
+<<<<<<< HEAD
+    val exme_bar_rd  = Input(UInt(5.W))
+    val mewb_bar_rd  = Input(UInt(5.W))
+    //val wb_rd        = Input(UInt(5.W))
+
+    //none for memory because there are no memory operations
+    val forward_a    = Output(UInt(2.W))
+    val forward_b    = Output(UInt(2.W))
+
+    val ex_reg_w     = Input(Bool())
+    val mem_reg_w    = Input(Bool())
+    val wb_reg_w     = Input(Bool())
+  })
+
+    io.forward_a := 0.U
+    io.forward_b := 0.U
+
+  
+=======
+=======
+>>>>>>> anya
     val exme_bar_rd  = Input(UInt(5.W)) //from EX bar
     val mewb_bar_rd  = Input(UInt(5.W)) // from MEM bar
     val wb_bar_rd    = Input (UInt(5.W)) // from WB bar
@@ -120,6 +142,10 @@ class ForwardingUnit extends Module {
   })
   io.forward_a := 0.U
   io.forward_b := 0.U
+<<<<<<< HEAD
+>>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
 
 
   /* TODO:
@@ -127,6 +153,29 @@ class ForwardingUnit extends Module {
      Which pipeline stages are affected and how can a potential hazard be detected there?
   */
   //RAW hazards
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+  when(io.ex_reg_w && (io.exme_bar_rd =/= 0.U) && (io.exme_bar_rd === io.idex_bar_rs1)) {
+    io.forward_a := 1.U
+  }.elsewhen(io.mem_reg_w && (io.mewb_bar_rd =/= 0.U) && (io.mewb_bar_rd === io.idex_bar_rs1)) {
+    io.forward_a := 2.U
+  }/*.elsewhen(io.wb_reg_w && (io.wb_rd =/= 0.U) && (io.wb_rd === io.idex_bar_rs1)) {
+    io.forward_a := 3.U
+  }*/
+
+  when(io.ex_reg_w && (io.exme_bar_rd =/= 0.U) && (io.exme_bar_rd === io.idex_bar_rs2)) {
+    io.forward_b := 1.U
+  }.elsewhen(io.mem_reg_w && (io.mewb_bar_rd =/= 0.U) && (io.mewb_bar_rd === io.idex_bar_rs2)) {
+    io.forward_b := 2.U
+  }/*.elsewhen(io.wb_reg_w && (io.wb_rd =/= 0.U) && (io.wb_rd === io.idex_bar_rs2)) {
+    io.forward_b := 3.U
+  }*/
+  
+
+=======
+=======
+>>>>>>> anya
   when(io.idex_bar_rs1 === io.mewb_bar_rd && io.mewb_bar_rd =/= 0.U ){
       io.forward_a := 2.U
   }.elsewhen(io.idex_bar_rs1 === io.exme_bar_rd && io.exme_bar_rd =/= 0.U) {
@@ -146,6 +195,10 @@ class ForwardingUnit extends Module {
   }.otherwise{
     io.forward_b := 0.U
   }
+<<<<<<< HEAD
+>>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
   //WAW hazards cannot occur here
   //WAR hazards cannot occur here
 
@@ -173,8 +226,21 @@ class ForwardingUnit extends Module {
     io.operand_b := io.wb_bar_result
   }.otherwise{
     io.operand_b := 0.U
+<<<<<<< HEAD
+<<<<<<< HEAD
+  }*/
+  printf(p"idex_bar_rs1: ${io.idex_bar_rs1}  idex_bar_rs2: ${io.idex_bar_rs2}\n")
+  printf(p"exme_bar_rd: ${io.exme_bar_rd}  mewb_bar_rd: ${io.mewb_bar_rd}\n")
+  printf(p"forward a: ${io.forward_a}  forward b:${io.forward_b}\n")
+
+=======
   }
   
+>>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+  }
+  
+>>>>>>> anya
 }
 
 
@@ -575,16 +641,42 @@ class HazardDetectionRV32Icore (BinaryFile: String) extends Module {
   */
   ForwardingUnit.io.idex_bar_rs1 := IDBarrier.io.outRS1
   ForwardingUnit.io.idex_bar_rs2 := IDBarrier.io.outRS2
+<<<<<<< HEAD
+<<<<<<< HEAD
+  ForwardingUnit.io.exme_bar_rd  := EXBarrier.io.outRD
+  ForwardingUnit.io.mewb_bar_rd  := MEMBarrier.io.outRD
+  //ForwardingUnit.io.wb_rd        := WB.io.rd
+  ForwardingUnit.io.ex_reg_w := (EXBarrier.io.outRD =/= 0.U)
+  ForwardingUnit.io.mem_reg_w := (MEMBarrier.io.outRD =/= 0.U)
+  ForwardingUnit.io.wb_reg_w := (WB.io.rd =/= 0.U)
+
+=======
+=======
+>>>>>>> anya
   ForwardingUnit.io.exme_bar_rd := EXBarrier.io.outRD
   ForwardingUnit.io.mewb_bar_rd := MEMBarrier.io.outRD
   ForwardingUnit.io.wb_bar_rd := WBBarrier.io.outRD
   ForwardingUnit.io.exme_bar_result := EXBarrier.io.outAluResult
   ForwardingUnit.io.mewb_bar_result := MEMBarrier.io.outAluResult
   ForwardingUnit.io.wb_bar_result := WBBarrier.io.outCheckRes
+<<<<<<< HEAD
+>>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
 
   /* 
     TODO: Implement MUXes to select which values are sent to the EX stage as operands
   */
+<<<<<<< HEAD
+<<<<<<< HEAD
+  printf(p"in main class before mux, forward a= ${ForwardingUnit.io.forward_a}  forward b= ${ForwardingUnit.io.forward_b}\n")
+  /*EX.io.operandA := Mux(ForwardingUnit.io.forward_a === 0.U,IDBarrier.io.outOperandA, ForwardingUnit.io.operand_a)
+  EX.io.operandB := Mux(ForwardingUnit.io.forward_b === 0.U,IDBarrier.io.outOperandB, ForwardingUnit.io.operand_b)*/
+  
+=======
+>>>>>>> 5ef621d98c3c20d90d687c60649b8c067ba61c43
+=======
+>>>>>>> anya
   EX.io.uop := IDBarrier.io.outUOP
 
   EX.io.operandA := Mux(ForwardingUnit.io.forward_a === 0.U,IDBarrier.io.outOperandA, ForwardingUnit.io.operand_a)
