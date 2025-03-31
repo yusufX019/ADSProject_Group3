@@ -113,7 +113,7 @@ class BranchTargetBuffer extends Module{
       }
       is(State.WeakNotTaken){ //01
         when(io.mispredicted === 1.U){
-          stateBtb := State.WeakTaken
+          stateBtb := State.StrongTaken
         }.otherwise{
           stateBtb := State.StrongNotTaken
         }
@@ -141,7 +141,7 @@ class BranchTargetBuffer extends Module{
   val SetFullAndLRU1 = (currentSet.LRU_counter === 1.U) & (currentSet.ways(0).valid === 1.U) & (currentSet.ways(1).valid === 1.U)
 
   when((io.update & io.mispredicted) === 1.U){ 
-    when(currentSet.ways(0).valid === 0.U | SetFullAndLRU1){
+    when(way0Match === 1.U){
       currentSet.ways(0).valid := 1.U
       currentSet.ways(0).tag := io.updatePC(31,5)
       currentSet.ways(0).target_address := io.updateTarget
@@ -152,7 +152,7 @@ class BranchTargetBuffer extends Module{
       }.elsewhen((~io.mispredicted & ~io.predictTaken | (io.predictTaken & ~io.mispredicted)) === 1.U){
         currentSet.ways(0).prediction := currentSet.ways(0).prediction + 1.U
       }
-    }.elsewhen(currentSet.ways(1).valid === 0.U | currentSet.LRU_counter === 0.U & currentSet.ways(0).valid === 1.U & currentSet.ways(1).valid === 1.U){
+    }.elsewhen(way1Match === 1.U){
       currentSet.ways(1).valid := 1.U
       currentSet.ways(1).tag := io.updatePC(31,5)
       currentSet.ways(1).target_address := io.updateTarget

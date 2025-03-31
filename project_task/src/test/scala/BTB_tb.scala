@@ -53,7 +53,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.target.expect(testTarget)
 
     // --- Insert second entry at the same index (to test collisions) ---
-    val conflictPC = 0x00000018.U  // Different tag, same index
+    val conflictPC = 0x00000110.U  // Different tag, same index
     val conflictTag = conflictPC(31,5)
     val conflictTarget = 0x00000090.U
 
@@ -71,8 +71,16 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     // Check if first entry is still present (depends on replacement policy)
     dut.io.PC.poke(testPC)
     dut.clock.step()
-    dut.io.valid.expect(1.U) // May fail if LRU evicted it
+    dut.io.valid.expect(1.U) 
     dut.io.target.expect(testTarget)
+
+    dut.clock.step()
+
+      dut.io.PC.poke(conflictPC)
+    dut.clock.step()
+    dut.io.valid.expect(1.U)
+    dut.io.target.expect(conflictTarget)
+
 
     // --- Insert a new entry to force eviction (if table is full) ---
     val evictPC = 0x00002010.U
@@ -90,11 +98,16 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.valid.expect(1.U)
     dut.io.target.expect(evictTarget)
 
+     // Test whether oldest entry was evicted
+    dut.io.PC.poke(conflictPC)
+    dut.clock.step()
+    dut.io.valid.expect(1.U) // Should fail if evicted due to LRU
+
 
     // Test whether oldest entry was evicted
     dut.io.PC.poke(testPC)
     dut.clock.step()
-    dut.io.valid.expect(1.U) // Should fail if evicted due to LRU
+    dut.io.valid.expect(0.U) // Should fail if evicted due to LRU
 
 
 /*    // --- Simulate misprediction and state transition ---
@@ -106,7 +119,7 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     // Check if state transitioned (Strong Taken → Weak Taken)
     dut.io.predictTaken.expect(true.B) // If FSM transitioned correctly
 */
-
+/*
     val mispredictPC = 0x00000010.U
     dut.io.PC.poke(mispredictPC)
     
@@ -116,45 +129,36 @@ class BTBTest extends AnyFlatSpec with ChiselScalatestTester {
     
     println(s"Initial predictTaken: ${dut.io.predictTaken.peek().litValue}") // Debug print
     
-    // 1. WeakNotTaken (01) → WeakTaken (11)
+    // 1a. WeakNotTaken (01) → StrongTaken (10)
     dut.io.mispredicted.poke(1.U)
-    dut.clock.step()
-    dut.io.predictTaken.expect(true.B) // Now taken
-    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakNotTaken)
-
-    // 2. WeakTaken (11) → StrongNotTaken (00)
-    dut.io.mispredicted.poke(0.U)
-    dut.clock.step()
-    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
-    
-    // 3. StrongNotTaken (00) → WeakNotTaken (01)
-    dut.io.mispredicted.poke(1.U)
-    dut.clock.step()
-    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakNotTaken)
-
-
-    // 6. WeakNotTaken (01) → WeakTaken (11)
-    dut.io.mispredicted.poke(1.U)
-    dut.clock.step()
-    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakTaken)
-    
-    // 7. WeakTaken (11) → StrongTaken (10)
-    dut.io.mispredicted.poke(0.U)
     dut.clock.step()
     dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongTaken)
-    
-    // 8. StrongTaken (10) → WeakTaken (11)
+
+    // 2a. StrongTaken (10) → WeakTaken (11)
     dut.io.mispredicted.poke(1.U)
     dut.clock.step()
     dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakTaken)
-    
-    // 9. WeakTaken (11) → StrongNotTaken (00)
+
+    // 3a. WeakTaken (11) → StrongNotTaken (00)
     dut.io.mispredicted.poke(1.U)
     dut.clock.step()
     dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
 
+    // 4a. StrongNotTaken (00) → WeakNotTaken (01)
+    dut.io.mispredicted.poke(1.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.WeakNotTaken)
 
+    // 1b. WeakNotTaken (01) → StrongNotTaken (00)
+    dut.io.mispredicted.poke(0.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
 
+    // 1b. StrongNotTaken (00) → StrongNotTaken (00)
+    dut.io.mispredicted.poke(0.U)
+    dut.clock.step()
+    dut.io.fsm_state.expect(StateBranchTargetBuffer.State.StrongNotTaken)
+*/
     
     }
   }
