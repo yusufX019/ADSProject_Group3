@@ -79,14 +79,14 @@ class BranchTargetBuffer extends Module{
         //predict taken
         io.target := currentSet.ways(0).target_address
         //change prediction
-        currentSet.LRU_counter := 0.U
+        currentSet.LRU_counter := 1.U
       }
     }.elsewhen(currentSet.ways(1).tag === tag){//get 2nd entry
       when(currentSet.ways(1).valid === 1.U){
         //predict taken
          io.target := currentSet.ways(1).target_address
         //change prediction 
-        currentSet.LRU_counter := 1.U
+        currentSet.LRU_counter := 0.U
       }
     }.otherwise{
       //predict not taken
@@ -141,22 +141,22 @@ class BranchTargetBuffer extends Module{
   val SetFullAndLRU1 = (currentSet.LRU_counter === 1.U) & (currentSet.ways(0).valid === 1.U) & (currentSet.ways(1).valid === 1.U)
 
   when((io.update & io.mispredicted) === 1.U){ 
-    when(currentSet.ways(0).valid === 0.U | SetFullAndLRU1){
+    when(way0Match === 1.U){
       currentSet.ways(0).valid := 1.U
       currentSet.ways(0).tag := io.updatePC(31,5)
       currentSet.ways(0).target_address := io.updateTarget
-      currentSet.LRU_counter := 0.U
+      currentSet.LRU_counter := 1.U
       //update counter
       when(((io.mispredicted & io.predictTaken) | (~io.predictTaken & io.mispredicted)) === 1.U){
         currentSet.ways(0).prediction := currentSet.ways(0).prediction - 1.U
       }.elsewhen((~io.mispredicted & ~io.predictTaken | (io.predictTaken & ~io.mispredicted)) === 1.U){
         currentSet.ways(0).prediction := currentSet.ways(0).prediction + 1.U
       }
-    }.elsewhen(currentSet.ways(1).valid === 0.U | currentSet.LRU_counter === 0.U & currentSet.ways(0).valid === 1.U & currentSet.ways(1).valid === 1.U){
+    }.elsewhen(way1Match === 1.U){
       currentSet.ways(1).valid := 1.U
       currentSet.ways(1).tag := io.updatePC(31,5)
       currentSet.ways(1).target_address := io.updateTarget
-      currentSet.LRU_counter := 1.U
+      currentSet.LRU_counter := 0.U
       //update counter
       when(((io.mispredicted & io.predictTaken) | (~io.predictTaken & io.mispredicted)) === 1.U){
         currentSet.ways(1).prediction := currentSet.ways(1).prediction - 1.U
