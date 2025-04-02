@@ -170,11 +170,23 @@ class BranchTargetBuffer extends Module{
   io.valid := hit
   io.target := Mux((hit).asBool, btb(index).ways(waySel).target_address, 0.U)
   io.predictTaken := Mux((hit).asBool, predictedTaken, false.B)
-  io.fsm_state := stateBtb
+<<<<<<< HEAD
+}
 
+
+class PipelinedRV32Icore (BinaryFile: String) extends Module {
+
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
  0 val btb = Module(new BranchTargetBuffer())
 >>>>>>> 00465ab6a309ba7d6f7e88080bc72d980433b5c9
+=======
+ 0 val btb = Module(new BranchTargetBuffer())
+=======
+  io.fsm_state := stateBtb
+
+>>>>>>> main
+>>>>>>> d6b1f1eb6ee593882ab17c3a640580b3db3fa295
 }
 
